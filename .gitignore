@@ -220,4 +220,7 @@ $RECYCLE.BIN/
 # VSCode settings
 .vscode/
 
+# static
+static/
+
 # End of https://www.toptal.com/developers/gitignore/api/windows,python,react
