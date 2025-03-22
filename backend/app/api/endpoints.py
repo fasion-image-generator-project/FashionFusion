@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from app.model import run_initial_inference, run_final_inference
 
 router = APIRouter()
 
@@ -27,16 +28,20 @@ class FinalDesignResponse(BaseModel):
 async def predict_initial_design(request: InitialDesignRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="Text is required")
-    return InitialDesignResponse(
-        imageUrl="https://via.placeholder.com/300?text=Initial+Design"
-    )
+    try:
+        image_url = run_initial_inference(request.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return InitialDesignResponse(imageUrl=image_url)
 
 
 # 최종 디자인 생성 엔드포인트 (목 데이터 반환)
 @router.post("/predict/final", response_model=FinalDesignResponse)
 async def predict_final_design(request: FinalDesignRequest):
-    if not request.image:
+    if not request.image or not request.model:
         raise HTTPException(status_code=400, detail="Image and model are required")
-    return FinalDesignResponse(
-        imageUrl="https://via.placeholder.com/300?text=Final+Design"
-    )
+    try:
+        image_url = run_final_inference(request.image, request.model)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return FinalDesignResponse(imageUrl=image_url)

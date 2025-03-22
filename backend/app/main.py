@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from app.api import endpoints
 
 app = FastAPI(
@@ -9,3 +10,6 @@ app = FastAPI(
 
 # endpoint router
 app.include_router(endpoints.router)
+
+# 정적 파일 경로 설정
+app.mount("/static", StaticFiles(directory="static"), name="static")
