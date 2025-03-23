@@ -1,13 +1,12 @@
-import React from 'react';
-import DesignGenerator from './components/DesignGenerator';
+import React from "react";
+import ImageGenerator from "./components/ImageGenerator";
 
 function App() {
   return (
-    <div>
-      <h1>AI 디자인 생성 서비스</h1>
-      <DesignGenerator />
-    </div>
+    <div className="App">
+      <ImageGenerator />
+    </div>    
   );
 }
 
-export default App;
+export default App; 
