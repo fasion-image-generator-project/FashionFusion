@@ -48,6 +48,7 @@ jobs:
       - name: Run tests with coverage
         env:
           HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: |
           pytest --cov=app --cov-report=xml -v
       
