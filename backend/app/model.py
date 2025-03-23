@@ -1,10 +1,11 @@
-import requests
-import logging
 import base64
-from PIL import Image, ImageOps
 import io
+import logging
 import os
+
+import requests
 from dotenv import load_dotenv
+from PIL import Image, ImageOps
 
 load_dotenv()
 

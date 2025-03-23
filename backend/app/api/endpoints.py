@@ -1,6 +1,6 @@
+from app.model import run_final_inference, run_initial_inference
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.model import run_initial_inference, run_final_inference
 
 router = APIRouter()
 
