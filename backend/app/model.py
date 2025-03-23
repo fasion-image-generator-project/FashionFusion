@@ -1,5 +1,9 @@
 import requests
 import logging
+import base64
+import datetime
+from PIL import Image
+import io
 
 HF_API_TOKEN = "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"
 
@@ -17,10 +21,17 @@ def run_initial_inference(model_input):
         logger.error(f"Stable Diffusion API error: {response.text}")
         raise Exception(f"Stable Diffusion API error: {response.text}")
 
-    # 실제 응답은 이미지 데이터(바이너리 혹은 base64)일 수 있음.
-    # 테스트 목적으로는 반환된 데이터를 저장하거나, 단순히 성공 메시지를 확인할 수 있습니다.
-    # 여기서는 테스트용으로 placeholder URL을 반환합니다.
-    return "https://via.placeholder.com/300?text=StableDiffusion+Output"
+    # Get the generated image data
+    image_data = response.content
+
+    image = Image.open(io.BytesIO(image_data))
+    image.show()
+
+    # Convert the image data to base64 for easy transmission
+    base64_image = base64.b64encode(image_data).decode("utf-8")
+
+    # Return just the base64 image string
+    return base64_image
 
 
 def run_final_inference(initial_image_url, selected_model):
