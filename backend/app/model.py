@@ -1,13 +1,14 @@
 import requests
 import logging
 import base64
-import datetime
-import PIL
 from PIL import Image, ImageOps
 import io
 import os
+from dotenv import load_dotenv
 
-HF_API_TOKEN = "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"
+load_dotenv()
+
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,9 +35,6 @@ def run_initial_inference(model_input: str):
         raise Exception(f"Stable Diffusion API error: {response.text}")
 
     image_data = response.content
-
-    with Image.open(io.BytesIO(image_data)) as image:
-        image.show()
 
     base64_image = base64.b64encode(image_data).decode("utf-8")
     return base64_image
@@ -93,7 +91,6 @@ def run_final_inference(initial_image_url: str, selected_model: str) -> str:
 
     # 이미지 다운로드 및 전처리
     image = download_image(initial_image_url)
-    image.show()
     image_base64 = encode_image_to_base64(image)
 
     payload = {
@@ -115,8 +112,5 @@ def run_final_inference(initial_image_url: str, selected_model: str) -> str:
     # 결과 이미지 처리 및 표시
     result_image_data = response.content
     base64_result = base64.b64encode(result_image_data).decode("utf-8")
-    with Image.open(io.BytesIO(result_image_data)) as result_img:
-        result_img.show()
 
-    print("Base64 result:", base64_result)
     return base64_result
