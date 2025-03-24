@@ -2,44 +2,51 @@ import base64
 import io
 import logging
 import os
-
 import httpx
+
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
+from huggingface_hub import InferenceClient
+from io import BytesIO
 
 load_dotenv()
-
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+if not HF_API_TOKEN:
+    raise Exception("HF_API_TOKEN is not set in the environment environment variable.")
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize InferenceClient
+client = InferenceClient(token=HF_API_TOKEN)
 
-async def run_initial_inference(model_input: str):
+
+async def run_initial_inference(prompt: str):
     """
     Generate an image from a text prompt using the Stable Diffusion 3.5 API,
     displays the image, and returns the image as a Base64-encoded string.
 
     Args:
-        model_input (str): The text prompt for image generation.
+        prompt (str): The text prompt for image generation.
 
     Returns:
         str: The Base64-encoded string of the generated image.
     """
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-    payload = {"inputs": model_input}
+    try:
+        response = client.text_to_image(
+            model="stabilityai/stable-diffusion-3.5-large", prompt=prompt
+        )
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(API_URL, headers=headers, json=payload)
+        with BytesIO() as buffer:
+            response.save(buffer, format="JPEG")
+            image_bytes = buffer.getvalue()
 
-    if response.status_code != 200:
-        logger.error(f"Stable Diffusion API error: {response.text}")
-        raise Exception(f"Stable Diffusion API error: {response.text}")
-
-    image_data = response.content
-    base64_image = base64.b64encode(image_data).decode("utf-8")
-    return base64_image
+        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+        return encoded_image
+    except Exception as e:
+        logger.error(f"Stable Diffusion API error: {str(e)}")
+        raise Exception(f"Stable Diffusion API error: {str(e)}")
 
 
 async def download_image(input_str: str) -> Image.Image:
@@ -96,33 +103,29 @@ async def run_final_inference(initial_image_url: str, selected_model: str) -> st
     Returns:
         str: Base64-encoded string of the processed image.
     """
-    API_URL = "https://api-inference.huggingface.co/models/timbrooks/instruct-pix2pix"
-    headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
-
     # 이미지 다운로드 및 전처리
     image = await download_image(initial_image_url)
-    # image.show()
-    image_base64 = encode_image_to_base64(image)
+    image.show()
 
-    payload = {
-        "inputs": image_base64,  # 필요 시 "data:image/png;base64," 접두사를 추가할 수 있음.
-        "parameters": {
-            "prompt": "turn him into cyborg",
-            "num_inference_steps": 10,
-            "image_guidance_scale": 1,
-        },
-    }
-    logger.info(f"Payload size: {len(str(payload))} bytes")
+    # 이미지를 바이트 데이터로 변환 (예: PNG 형식)
+    with BytesIO() as img_buffer:
+        image.save(img_buffer, format="PNG")
+        image_bytes = img_buffer.getvalue()
 
-    # API 호출
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(API_URL, headers=headers, json=payload)
-    if response.status_code != 200:
-        logger.error(f"Image processing API error: {response.text}")
-        raise Exception(f"Image processing API error: {response.text}")
+    # 이제 InferenceClient에 전달할 때, PIL.Image 객체 대신 바이트 데이터를 전달합니다.
+    prompt = "Transform your clothes into a traditional style"
+    try:
+        # image_bytes를 전달 (바이트 데이터)
+        response = client.image_to_image(
+            image_bytes, prompt, model="timbrooks/instruct-pix2pix"
+        )
 
-    # 결과 이미지 처리 및 표시
-    result_image_data = response.content
-    base64_result = base64.b64encode(result_image_data).decode("utf-8")
+        with BytesIO() as buffer:
+            response.save(buffer, format="JPEG")
+            result_bytes = buffer.getvalue()
 
-    return base64_result
+        encoded_image = base64.b64encode(result_bytes).decode("utf-8")
+        return encoded_image
+    except Exception as e:
+        logger.error(f"Stable Diffusion API error: {str(e)}")
+        raise Exception(f"Stable Diffusion API error: {str(e)}")
