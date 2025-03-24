@@ -1,6 +1,12 @@
 // src/components/ImageGenerator.jsx
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { generateInitialImage, generateFinalImage } from "../api";
+
+const MODEL_OPTIONS = [
+  { id: "cycle-gan-turbo", name: "Cycle GAN-turbo", label: "Cycle GAN-turbo" },
+  { id: "cycle-gan", name: "Cycle GAN", label: "Cycle GAN" },
+  { id: "style-gan", name: "Style GAN", label: "Style GAN" }
+];
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -8,8 +14,9 @@ const ImageGenerator = () => {
   const [finalImage, setFinalImage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedModel, setSelectedModel] = useState("cycle-gan-turbo");
+  const imageSectionRef = useRef(null);
 
-  // 초기 이미지 생성 핸들러
   const handleInitialGeneration = async () => {
     if (!prompt) return;
     setLoading(true);
@@ -17,7 +24,7 @@ const ImageGenerator = () => {
     try {
       const imageData = await generateInitialImage(prompt);
       setInitialImage(imageData);
-      setFinalImage(""); // 새로운 초기 이미지 생성 시 기존 최종 이미지 클리어
+      setFinalImage("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -25,14 +32,12 @@ const ImageGenerator = () => {
     }
   };
 
-  // 최종 이미지 생성 핸들러
   const handleFinalGeneration = async () => {
     if (!initialImage) return;
     setLoading(true);
     setError("");
     try {
-      // 선택된 모델은 하드코딩("Cycle GAN") 또는 사용자가 선택하도록 확장할 수 있음
-      const imageData = await generateFinalImage(initialImage, "Cycle GAN");
+      const imageData = await generateFinalImage(initialImage, selectedModel);
       setFinalImage(imageData);
     } catch (err) {
       setError(err.message);
@@ -41,81 +46,261 @@ const ImageGenerator = () => {
     }
   };
 
+  const handleRegenerate = () => {
+    handleInitialGeneration();
+  };
+
+  const handleReset = () => {
+    setPrompt("");
+    setInitialImage("");
+    setFinalImage("");
+    setError("");
+  };
+
   return (
-    <div className="image-generator-container" style={{ padding: "20px" }}>
-      <h1>이미지 생성 및 변환</h1>
-      {/* 프롬프트 입력 및 초기 이미지 생성 폼 */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleInitialGeneration();
-        }}
-        style={{ marginBottom: "20px" }}
-      >
-        <input
-          type="text"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
-          disabled={loading}
-          style={{ padding: "8px", width: "300px", marginRight: "10px" }}
-        />
-        <button type="submit" disabled={loading || !prompt}>
-          초기 이미지 생성
-        </button>
-      </form>
-
-      {/* 로딩 상태 */}
-      {loading && (
-        <div className="loading-indicator">
-          <p>로딩 중...</p>
-        </div>
-      )}
-
-      {/* 에러 메시지 */}
-      {error && (
-        <div className="error-message">
-          <p style={{ color: "red" }}>{error}</p>
-        </div>
-      )}
-
-      {/* 초기 이미지 표시 및 최종 이미지 생성 버튼 */}
-      {initialImage && (
-        <div className="initial-image-section" style={{ marginTop: "20px" }}>
-          <h2>초기 이미지</h2>
-          <img
-            src={`data:image/png;base64,${initialImage}`}
-            alt="Initial"
-            style={{
-              maxWidth: "300px",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              marginBottom: "10px",
-            }}
-          />
-          <div>
-            <button onClick={handleFinalGeneration} disabled={loading}>
-              최종 이미지 생성
-            </button>
+    <div className="image-generator-container" style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      minHeight: "100vh",
+      padding: "40px",
+      backgroundColor: "#f5f5f5",
+      gap: "20px"
+    }}>
+      {/* 프롬프트 표시 */}
+      {prompt && (
+        <div style={{
+          width: "100%",
+          maxWidth: "800px",
+          backgroundColor: "white",
+          padding: "20px",
+          borderRadius: "12px",
+          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontWeight: "bold" }}>prompt:</span>
+            <span>{prompt}</span>
           </div>
         </div>
       )}
 
-      {/* 최종 이미지 표시 */}
-      {finalImage && (
-        <div className="final-image-section" style={{ marginTop: "20px" }}>
-          <h2>최종 이미지</h2>
-          <img
-            src={`data:image/png;base64,${finalImage}`}
-            alt="Final"
-            style={{
-              maxWidth: "300px",
+      {/* 메인 컨텐츠 영역 */}
+      <div style={{
+        width: "100%",
+        maxWidth: "800px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "20px"
+      }}>
+        {/* 이미지 및 컨트롤 영역 */}
+        <div style={{
+          backgroundColor: "white",
+          padding: "20px",
+          borderRadius: "12px",
+          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+        }}>
+          {/* 이미지 표시 영역 */}
+          {initialImage ? (
+            <div style={{
               border: "1px solid #ddd",
-              borderRadius: "4px",
-            }}
-          />
+              borderRadius: "8px",
+              padding: "20px",
+              marginBottom: "20px"
+            }}>
+              <img
+                src={`data:image/png;base64,${initialImage}`}
+                alt="Generated"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "4px"
+                }}
+              />
+            </div>
+          ) : (
+            /* 프롬프트 입력 폼 */
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleInitialGeneration();
+              }}
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginBottom: "20px"
+              }}
+            >
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
+                disabled={loading}
+                style={{
+                  flex: 1,
+                  padding: "12px",
+                  borderRadius: "6px",
+                  border: "1px solid #ddd",
+                  fontSize: "1rem"
+                }}
+              />
+              <button
+                type="submit"
+                disabled={loading || !prompt}
+                style={{
+                  padding: "12px 24px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: loading || !prompt ? "not-allowed" : "pointer",
+                  opacity: loading || !prompt ? 0.6 : 1,
+                  fontSize: "1rem",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                생성
+              </button>
+            </form>
+          )}
+
+          {/* 모델 선택 라디오 버튼 */}
+          {initialImage && (
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              marginBottom: "20px"
+            }}>
+              <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
+              <div style={{
+                display: "flex",
+                gap: "20px"
+              }}>
+                {MODEL_OPTIONS.map((option) => (
+                  <label
+                    key={option.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="model"
+                      value={option.id}
+                      checked={selectedModel === option.id}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      style={{ cursor: "pointer" }}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 액션 버튼들 */}
+          {initialImage && (
+            <div style={{
+              display: "flex",
+              gap: "10px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={handleRegenerate}
+                disabled={loading}
+                style={{
+                  padding: "8px 24px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                regenerate
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={loading}
+                style={{
+                  padding: "8px 24px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                reset
+              </button>
+              <button
+                onClick={handleFinalGeneration}
+                disabled={loading}
+                style={{
+                  padding: "8px 24px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                style transform
+              </button>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* 로딩 상태 */}
+        {loading && (
+          <div style={{
+            textAlign: "center",
+            padding: "20px",
+            color: "#666"
+          }}>
+            <p>로딩 중...</p>
+          </div>
+        )}
+
+        {/* 에러 메시지 */}
+        {error && (
+          <div style={{
+            padding: "20px",
+            backgroundColor: "#ffebee",
+            borderRadius: "6px",
+            color: "#d32f2f"
+          }}>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {/* 변환된 이미지 */}
+        {finalImage && (
+          <div style={{
+            backgroundColor: "white",
+            padding: "20px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+          }}>
+            <img
+              src={`data:image/png;base64,${finalImage}`}
+              alt="Transformed"
+              style={{
+                width: "100%",
+                height: "auto",
+                borderRadius: "4px"
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
