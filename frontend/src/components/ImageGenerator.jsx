@@ -126,14 +126,13 @@ const ImageGenerator = () => {
 
         {/* 메인 컨텐츠 영역 */}
         <div style={{
-          width: "100%",
           display: "flex",
-          flexDirection: "column",
-          gap: "20px"
+          gap: "20px",
+          width: "calc(100% + 38px)"
         }}>
           {/* 이미지 및 컨트롤 영역 */}
           <div style={{
-            width: "100%",
+            flex: 1,
             backgroundColor: "white",
             padding: "20px",
             borderRadius: "12px",
@@ -185,7 +184,7 @@ const ImageGenerator = () => {
             </form>
 
             {/* 이미지 표시 영역 */}
-            {initialImage && (
+            {initialImage && !finalImage && (
               <div style={{
                 border: "1px solid #ddd",
                 borderRadius: "8px",
@@ -239,42 +238,41 @@ const ImageGenerator = () => {
               </div>
             )}
 
-            {/* 모델 선택 라디오 버튼 */}
-            {initialImage && (
+            {/* 변환된 이미지 */}
+            {finalImage && (
               <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                marginBottom: "20px"
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "20px",
+                marginBottom: "20px",
+                position: "relative"
               }}>
-                <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
-                <div style={{
-                  display: "flex",
-                  gap: "20px",
-                  justifyContent: "center"
-                }}>
-                  {MODEL_OPTIONS.map((option) => (
-                    <label
-                      key={option.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        cursor: "pointer"
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="model"
-                        value={option.id}
-                        checked={selectedModel === option.id}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        style={{ cursor: "pointer" }}
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
+                {loading && (
+                  <div style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: "8px",
+                    zIndex: 1
+                  }}>
+                    <LoadingSpinner />
+                  </div>
+                )}
+                <img
+                  src={`data:image/png;base64,${finalImage}`}
+                  alt="Transformed"
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    borderRadius: "4px"
+                  }}
+                />
               </div>
             )}
 
@@ -283,7 +281,8 @@ const ImageGenerator = () => {
               <div style={{
                 display: "flex",
                 gap: "10px",
-                justifyContent: "center"
+                justifyContent: "center",
+                marginTop: "20px"
               }}>
                 <button
                   onClick={handleRegenerate}
@@ -334,56 +333,65 @@ const ImageGenerator = () => {
             )}
           </div>
 
-          {/* 에러 메시지 */}
-          {error && (
-            <div style={{
-              padding: "20px",
-              backgroundColor: "#ffebee",
-              borderRadius: "6px",
-              color: "#d32f2f"
-            }}>
-              <p>{error}</p>
-            </div>
-          )}
-
-          {/* 변환된 이미지 */}
-          {finalImage && (
+          {/* 모델 선택 라디오 버튼 */}
+          {initialImage && (
             <div style={{
               backgroundColor: "white",
               padding: "20px",
               borderRadius: "12px",
               boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-              position: "relative"
+              width: "160px",
+              height: "fit-content"
             }}>
-              {loading && (
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px"
+              }}>
+                <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
                 <div style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
                   display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderRadius: "12px",
-                  zIndex: 1
+                  flexDirection: "column",
+                  gap: "10px"
                 }}>
-                  <LoadingSpinner />
+                  {MODEL_OPTIONS.map((option) => (
+                    <label
+                      key={option.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="model"
+                        value={option.id}
+                        checked={selectedModel === option.id}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        style={{ cursor: "pointer" }}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
                 </div>
-              )}
-              <img
-                src={`data:image/png;base64,${finalImage}`}
-                alt="Transformed"
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  borderRadius: "4px"
-                }}
-              />
+              </div>
             </div>
           )}
         </div>
+
+        {/* 에러 메시지 */}
+        {error && (
+          <div style={{
+            padding: "20px",
+            backgroundColor: "#ffebee",
+            borderRadius: "6px",
+            color: "#d32f2f"
+          }}>
+            <p>{error}</p>
+          </div>
+        )}
       </div>
     </div>
   );
