@@ -5,6 +5,7 @@ import os
 import httpx
 
 from dotenv import load_dotenv
+from config import MODEL_IDS
 from PIL import Image, ImageOps
 from huggingface_hub import InferenceClient
 from io import BytesIO
@@ -12,9 +13,9 @@ from io import BytesIO
 load_dotenv()
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 if not HF_API_TOKEN:
-    raise Exception("HF_API_TOKEN is not set in the environment environment variable.")
+    raise ValueError("HF_API_TOKEN is not set in the environment environment variable.")
 
-
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,7 @@ async def run_initial_inference(prompt: str):
         str: The Base64-encoded string of the generated image.
     """
     try:
-        response = client.text_to_image(
-            model="stabilityai/stable-diffusion-3.5-large", prompt=prompt
-        )
+        response = client.text_to_image(model=MODEL_IDS["text_to_image"], prompt=prompt)
 
         with BytesIO() as buffer:
             response.save(buffer, format="JPEG")
@@ -105,7 +104,7 @@ async def run_final_inference(initial_image_url: str, selected_model: str) -> st
     """
     # 이미지 다운로드 및 전처리
     image = await download_image(initial_image_url)
-    image.show()
+    # image.show()
 
     # 이미지를 바이트 데이터로 변환 (예: PNG 형식)
     with BytesIO() as img_buffer:
@@ -117,7 +116,7 @@ async def run_final_inference(initial_image_url: str, selected_model: str) -> st
     try:
         # image_bytes를 전달 (바이트 데이터)
         response = client.image_to_image(
-            image_bytes, prompt, model="timbrooks/instruct-pix2pix"
+            image_bytes, prompt, model=MODEL_IDS["image_to_image"]
         )
 
         with BytesIO() as buffer:
