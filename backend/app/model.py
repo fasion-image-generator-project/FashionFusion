@@ -2,13 +2,13 @@ import base64
 import io
 import logging
 import os
-import httpx
-
-from dotenv import load_dotenv
-from config import MODEL_IDS
-from PIL import Image, ImageOps
-from huggingface_hub import InferenceClient
 from io import BytesIO
+
+import httpx
+from config import MODEL_IDS
+from dotenv import load_dotenv
+from huggingface_hub import InferenceClient
+from PIL import Image, ImageOps
 
 load_dotenv()
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
