@@ -112,7 +112,7 @@ async def run_final_inference(initial_image_url: str, selected_model: str) -> st
         image_bytes = img_buffer.getvalue()
 
     # 이제 InferenceClient에 전달할 때, PIL.Image 객체 대신 바이트 데이터를 전달합니다.
-    prompt = "Transform your clothes into a traditional style"
+    prompt = "Turn the object in the picture into a cyborg"
     try:
         # image_bytes를 전달 (바이트 데이터)
         response = client.image_to_image(
