@@ -159,8 +159,26 @@ const ImageGenerator = () => {
                 border: "1px solid #ddd",
                 borderRadius: "8px",
                 padding: "20px",
-                marginBottom: "20px"
+                marginBottom: "20px",
+                position: "relative"
               }}>
+                {loading && (
+                  <div style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: "8px",
+                    zIndex: 1
+                  }}>
+                    <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+                  </div>
+                )}
                 <img
                   src={`data:image/png;base64,${initialImage}`}
                   alt="Generated"
@@ -170,6 +188,23 @@ const ImageGenerator = () => {
                     borderRadius: "4px"
                   }}
                 />
+              </div>
+            )}
+
+            {/* 초기 로딩 상태 */}
+            {loading && !initialImage && (
+              <div style={{
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "20px",
+                marginBottom: "20px",
+                backgroundColor: "white",
+                minHeight: "200px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center"
+              }}>
+                <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
               </div>
             )}
 
@@ -268,17 +303,6 @@ const ImageGenerator = () => {
             )}
           </div>
 
-          {/* 로딩 상태 */}
-          {loading && (
-            <div style={{
-              textAlign: "center",
-              padding: "20px",
-              color: "#666"
-            }}>
-              <p>로딩 중...</p>
-            </div>
-          )}
-
           {/* 에러 메시지 */}
           {error && (
             <div style={{
@@ -297,8 +321,26 @@ const ImageGenerator = () => {
               backgroundColor: "white",
               padding: "20px",
               borderRadius: "12px",
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+              position: "relative"
             }}>
+              {loading && (
+                <div style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: "rgba(255, 255, 255, 0.8)",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderRadius: "12px",
+                  zIndex: 1
+                }}>
+                  <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+                </div>
+              )}
               <img
                 src={`data:image/png;base64,${finalImage}`}
                 alt="Transformed"
