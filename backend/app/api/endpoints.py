@@ -29,7 +29,7 @@ async def predict_initial_design(request: InitialDesignRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="Text is required")
     try:
-        image_url = run_initial_inference(request.text)
+        image_url = await run_initial_inference(request.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return InitialDesignResponse(imageUrl=image_url)
@@ -41,7 +41,7 @@ async def predict_final_design(request: FinalDesignRequest):
     if not request.image or not request.model:
         raise HTTPException(status_code=400, detail="Image and model are required")
     try:
-        image_url = run_final_inference(request.image, request.model)
+        image_url = await run_final_inference(request.image, request.model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return FinalDesignResponse(imageUrl=image_url)
