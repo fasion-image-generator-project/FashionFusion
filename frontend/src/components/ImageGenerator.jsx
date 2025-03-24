@@ -8,6 +8,29 @@ const MODEL_OPTIONS = [
   { id: "style-gan", name: "Style GAN", label: "Style GAN" }
 ];
 
+const LoadingSpinner = () => (
+  <div style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "10px"
+  }}>
+    <div style={{
+      width: "40px",
+      height: "40px",
+      border: "4px solid #f3f3f3",
+      borderTop: "4px solid #007bff",
+      borderRadius: "50%",
+      animation: "spin 1s linear infinite",
+      "@keyframes spin": {
+        "0%": { transform: "rotate(0deg)" },
+        "100%": { transform: "rotate(360deg)" }
+      }
+    }} />
+    <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+  </div>
+);
+
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
   const [initialImage, setInitialImage] = useState("");
@@ -68,6 +91,14 @@ const ImageGenerator = () => {
       margin: 0,
       padding: 0
     }}>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       <div style={{
         width: "100%",
         maxWidth: "800px",
@@ -176,7 +207,7 @@ const ImageGenerator = () => {
                     borderRadius: "8px",
                     zIndex: 1
                   }}>
-                    <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+                    <LoadingSpinner />
                   </div>
                 )}
                 <img
@@ -204,7 +235,7 @@ const ImageGenerator = () => {
                 justifyContent: "center",
                 alignItems: "center"
               }}>
-                <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+                <LoadingSpinner />
               </div>
             )}
 
@@ -338,7 +369,7 @@ const ImageGenerator = () => {
                   borderRadius: "12px",
                   zIndex: 1
                 }}>
-                  <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
+                  <LoadingSpinner />
                 </div>
               )}
               <img
