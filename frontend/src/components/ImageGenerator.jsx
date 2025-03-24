@@ -58,67 +58,57 @@ const ImageGenerator = () => {
   };
 
   return (
-    <div className="image-generator-container" style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
+    <div style={{
+      width: "100vw",
       minHeight: "100vh",
-      padding: "40px",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
       backgroundColor: "#f5f5f5",
-      gap: "20px"
+      margin: 0,
+      padding: 0
     }}>
-      {/* 프롬프트 표시 */}
-      {prompt && (
-        <div style={{
-          width: "100%",
-          maxWidth: "800px",
-          backgroundColor: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontWeight: "bold" }}>prompt:</span>
-            <span>{prompt}</span>
-          </div>
-        </div>
-      )}
-
-      {/* 메인 컨텐츠 영역 */}
       <div style={{
         width: "100%",
         maxWidth: "800px",
         display: "flex",
         flexDirection: "column",
-        gap: "20px"
+        gap: "20px",
+        padding: "40px 20px",
+        margin: "20px"
       }}>
-        {/* 이미지 및 컨트롤 영역 */}
-        <div style={{
-          backgroundColor: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
-        }}>
-          {/* 이미지 표시 영역 */}
-          {initialImage ? (
-            <div style={{
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              padding: "20px",
-              marginBottom: "20px"
-            }}>
-              <img
-                src={`data:image/png;base64,${initialImage}`}
-                alt="Generated"
-                style={{
-                  width: "100%",
-                  height: "auto",
-                  borderRadius: "4px"
-                }}
-              />
+        {/* 프롬프트 표시 */}
+        {prompt && (
+          <div style={{
+            width: "100%",
+            backgroundColor: "white",
+            padding: "20px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontWeight: "bold" }}>prompt:</span>
+              <span>{prompt}</span>
             </div>
-          ) : (
-            /* 프롬프트 입력 폼 */
+          </div>
+        )}
+
+        {/* 메인 컨텐츠 영역 */}
+        <div style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px"
+        }}>
+          {/* 이미지 및 컨트롤 영역 */}
+          <div style={{
+            width: "100%",
+            backgroundColor: "white",
+            padding: "20px",
+            borderRadius: "12px",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+          }}>
+            {/* 프롬프트 입력 폼 */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -162,144 +152,165 @@ const ImageGenerator = () => {
                 생성
               </button>
             </form>
-          )}
 
-          {/* 모델 선택 라디오 버튼 */}
-          {initialImage && (
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              marginBottom: "20px"
-            }}>
-              <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
+            {/* 이미지 표시 영역 */}
+            {initialImage && (
+              <div style={{
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "20px",
+                marginBottom: "20px"
+              }}>
+                <img
+                  src={`data:image/png;base64,${initialImage}`}
+                  alt="Generated"
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    borderRadius: "4px"
+                  }}
+                />
+              </div>
+            )}
+
+            {/* 모델 선택 라디오 버튼 */}
+            {initialImage && (
               <div style={{
                 display: "flex",
-                gap: "20px"
+                flexDirection: "column",
+                gap: "10px",
+                marginBottom: "20px"
               }}>
-                {MODEL_OPTIONS.map((option) => (
-                  <label
-                    key={option.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="model"
-                      value={option.id}
-                      checked={selectedModel === option.id}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      style={{ cursor: "pointer" }}
-                    />
-                    {option.label}
-                  </label>
-                ))}
+                <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
+                <div style={{
+                  display: "flex",
+                  gap: "20px",
+                  justifyContent: "center"
+                }}>
+                  {MODEL_OPTIONS.map((option) => (
+                    <label
+                      key={option.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="model"
+                        value={option.id}
+                        checked={selectedModel === option.id}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        style={{ cursor: "pointer" }}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* 액션 버튼들 */}
+            {initialImage && (
+              <div style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "center"
+              }}>
+                <button
+                  onClick={handleRegenerate}
+                  disabled={loading}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  regenerate
+                </button>
+                <button
+                  onClick={handleReset}
+                  disabled={loading}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  reset
+                </button>
+                <button
+                  onClick={handleFinalGeneration}
+                  disabled={loading}
+                  style={{
+                    padding: "8px 24px",
+                    backgroundColor: "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  style transform
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 로딩 상태 */}
+          {loading && (
+            <div style={{
+              textAlign: "center",
+              padding: "20px",
+              color: "#666"
+            }}>
+              <p>로딩 중...</p>
             </div>
           )}
 
-          {/* 액션 버튼들 */}
-          {initialImage && (
+          {/* 에러 메시지 */}
+          {error && (
             <div style={{
-              display: "flex",
-              gap: "10px",
-              justifyContent: "center"
+              padding: "20px",
+              backgroundColor: "#ffebee",
+              borderRadius: "6px",
+              color: "#d32f2f"
             }}>
-              <button
-                onClick={handleRegenerate}
-                disabled={loading}
+              <p>{error}</p>
+            </div>
+          )}
+
+          {/* 변환된 이미지 */}
+          {finalImage && (
+            <div style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "12px",
+              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+            }}>
+              <img
+                src={`data:image/png;base64,${finalImage}`}
+                alt="Transformed"
                 style={{
-                  padding: "8px 24px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.6 : 1
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "4px"
                 }}
-              >
-                regenerate
-              </button>
-              <button
-                onClick={handleReset}
-                disabled={loading}
-                style={{
-                  padding: "8px 24px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.6 : 1
-                }}
-              >
-                reset
-              </button>
-              <button
-                onClick={handleFinalGeneration}
-                disabled={loading}
-                style={{
-                  padding: "8px 24px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.6 : 1
-                }}
-              >
-                style transform
-              </button>
+              />
             </div>
           )}
         </div>
-
-        {/* 로딩 상태 */}
-        {loading && (
-          <div style={{
-            textAlign: "center",
-            padding: "20px",
-            color: "#666"
-          }}>
-            <p>로딩 중...</p>
-          </div>
-        )}
-
-        {/* 에러 메시지 */}
-        {error && (
-          <div style={{
-            padding: "20px",
-            backgroundColor: "#ffebee",
-            borderRadius: "6px",
-            color: "#d32f2f"
-          }}>
-            <p>{error}</p>
-          </div>
-        )}
-
-        {/* 변환된 이미지 */}
-        {finalImage && (
-          <div style={{
-            backgroundColor: "white",
-            padding: "20px",
-            borderRadius: "12px",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
-          }}>
-            <img
-              src={`data:image/png;base64,${finalImage}`}
-              alt="Transformed"
-              style={{
-                width: "100%",
-                height: "auto",
-                borderRadius: "4px"
-              }}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
