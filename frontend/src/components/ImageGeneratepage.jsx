@@ -96,6 +96,30 @@ const FINAL_MODEL_OPTIONS = [
   { id: "Style GAN-ada", name: "Style GAN-ada", label: "Style GAN-ada" }
 ];
 
+// 모델 설명 정의
+const MODEL_DESCRIPTIONS = {
+  "Stable Diffusion 1.5": {
+    description: "안정적인 이미지 생성이 가능한 기본 모델",
+    pros: ["높은 안정성", "빠른 생성 속도", "일관된 품질"],
+    cons: ["창의성 제한적", "복잡한 디테일 표현 어려움"]
+  },
+  "Stable Diffusion 3.5": {
+    description: "더 높은 품질과 창의적인 이미지 생성이 가능한 최신 모델",
+    pros: ["높은 품질", "창의적인 표현", "세밀한 디테일"],
+    cons: ["느린 생성 속도", "더 많은 리소스 사용"]
+  },
+  "Disco GAN": {
+    description: "스타일 변환에 특화된 모델",
+    pros: ["강력한 스타일 변환", "다양한 스타일 적용", "빠른 처리 속도"],
+    cons: ["원본 구조 보존 어려움", "불안정한 결과"]
+  },
+  "Style GAN-ada": {
+    description: "고품질 스타일 변환과 세밀한 조정이 가능한 모델",
+    pros: ["높은 품질", "세밀한 파라미터 조정", "안정적인 결과"],
+    cons: ["복잡한 설정", "느린 처리 속도"]
+  }
+};
+
 // 테마 정의
 const lightTheme = {
   primary: '#007bff',
@@ -548,6 +572,84 @@ const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => (
  * 모델 선택 컴포넌트
  * 스타일 변환에 사용할 모델을 선택하는 메모이제이션된 컴포넌트
  */
+const ModelOption = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: ${props => props.theme.background};
+  }
+`;
+
+const ModelTooltip = styled.div`
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  width: 250px;
+  box-shadow: 0 2px 8px ${props => props.theme.shadow};
+  z-index: 1000;
+  transition: all 0.2s ease;
+  margin-left: 10px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent ${props => props.theme.surface} transparent transparent;
+  }
+`;
+
+const ModelOptionContainer = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &:hover ${ModelTooltip} {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const ModelDescription = styled.div`
+  margin-bottom: 8px;
+  color: ${props => props.theme.textSecondary};
+`;
+
+const ProsConsList = styled.div`
+  margin-top: 8px;
+`;
+
+const ProsConsItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+`;
+
+const ProsConsLabel = styled.span`
+  font-weight: bold;
+  min-width: 40px;
+  color: ${props => props.isPro ? props.theme.success : props.theme.danger};
+`;
+
 const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
   <ModelSelect>
     <ModelOptions>
@@ -558,25 +660,40 @@ const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
         gap: "10px"
       }}>
         {MODEL_OPTIONS.map((option) => (
-          <label
-            key={option.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer"
-            }}
-          >
-            <input
-              type="radio"
-              name="model"
-              value={option.id}
-              checked={selectedModel === option.id}
-              onChange={(e) => onModelChange(e.target.value)}
-              style={{ cursor: "pointer" }}
-            />
-            {option.label}
-          </label>
+          <ModelOptionContainer key={option.id}>
+            <ModelOption>
+              <input
+                type="radio"
+                name="model"
+                value={option.id}
+                checked={selectedModel === option.id}
+                onChange={(e) => onModelChange(e.target.value)}
+                style={{ cursor: "pointer" }}
+              />
+              {option.label}
+            </ModelOption>
+            <ModelTooltip>
+              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
+              <ProsConsList>
+                <ProsConsItem>
+                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
+                  <div>
+                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
+                      <div key={index}>• {pro}</div>
+                    ))}
+                  </div>
+                </ProsConsItem>
+                <ProsConsItem>
+                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
+                  <div>
+                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
+                      <div key={index}>• {con}</div>
+                    ))}
+                  </div>
+                </ProsConsItem>
+              </ProsConsList>
+            </ModelTooltip>
+          </ModelOptionContainer>
         ))}
       </div>
     </ModelOptions>
@@ -1301,29 +1418,44 @@ const ImageGeneratepage = () => {
                       <div style={{ fontWeight: "bold", marginBottom: "10px", color: props => props.theme.textSecondary }}>Select Initial Model</div>
                       <div style={{
                         display: "flex",
-                        gap: "20px",
-                        justifyContent: "flex-start"
+                        flexDirection: "column",
+                        gap: "10px"
                       }}>
                         {INITIAL_MODEL_OPTIONS.map((option) => (
-                          <label
-                            key={option.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              cursor: "pointer"
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="initialModel"
-                              value={option.id}
-                              checked={state.selectedInitialModel === option.id}
-                              onChange={(e) => handleInitialModelChange(e.target.value)}
-                              style={{ cursor: "pointer" }}
-                            />
-                            {option.label}
-                          </label>
+                          <ModelOptionContainer key={option.id}>
+                            <ModelOption>
+                              <input
+                                type="radio"
+                                name="initialModel"
+                                value={option.id}
+                                checked={state.selectedInitialModel === option.id}
+                                onChange={(e) => handleInitialModelChange(e.target.value)}
+                                style={{ cursor: "pointer" }}
+                              />
+                              {option.label}
+                            </ModelOption>
+                            <ModelTooltip>
+                              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
+                              <ProsConsList>
+                                <ProsConsItem>
+                                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
+                                  <div>
+                                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
+                                      <div key={index}>• {pro}</div>
+                                    ))}
+                                  </div>
+                                </ProsConsItem>
+                                <ProsConsItem>
+                                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
+                                  <div>
+                                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
+                                      <div key={index}>• {con}</div>
+                                    ))}
+                                  </div>
+                                </ProsConsItem>
+                              </ProsConsList>
+                            </ModelTooltip>
+                          </ModelOptionContainer>
                         ))}
                       </div>
                     </ModelOptions>
@@ -1394,29 +1526,44 @@ const ImageGeneratepage = () => {
                       <div style={{ fontWeight: "bold", marginBottom: "10px", color: props => props.theme.textSecondary }}>Select Final Model</div>
                       <div style={{
                         display: "flex",
-                        gap: "20px",
-                        justifyContent: "flex-start"
+                        flexDirection: "column",
+                        gap: "10px"
                       }}>
                         {FINAL_MODEL_OPTIONS.map((option) => (
-                          <label
-                            key={option.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              cursor: "pointer"
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="finalModel"
-                              value={option.id}
-                              checked={state.selectedFinalModel === option.id}
-                              onChange={(e) => handleFinalModelChange(e.target.value)}
-                              style={{ cursor: "pointer" }}
-                            />
-                            {option.label}
-                          </label>
+                          <ModelOptionContainer key={option.id}>
+                            <ModelOption>
+                              <input
+                                type="radio"
+                                name="finalModel"
+                                value={option.id}
+                                checked={state.selectedFinalModel === option.id}
+                                onChange={(e) => handleFinalModelChange(e.target.value)}
+                                style={{ cursor: "pointer" }}
+                              />
+                              {option.label}
+                            </ModelOption>
+                            <ModelTooltip>
+                              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
+                              <ProsConsList>
+                                <ProsConsItem>
+                                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
+                                  <div>
+                                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
+                                      <div key={index}>• {pro}</div>
+                                    ))}
+                                  </div>
+                                </ProsConsItem>
+                                <ProsConsItem>
+                                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
+                                  <div>
+                                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
+                                      <div key={index}>• {con}</div>
+                                    ))}
+                                  </div>
+                                </ProsConsItem>
+                              </ProsConsList>
+                            </ModelTooltip>
+                          </ModelOptionContainer>
                         ))}
                       </div>
                     </ModelOptions>
