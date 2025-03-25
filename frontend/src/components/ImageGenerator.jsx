@@ -190,7 +190,11 @@ const Input = styled.input`
 
 const Button = styled.button`
   padding: 12px 24px;
-  background-color: ${props => props.variant === 'success' ? '#28a745' : '#007bff'};
+  background-color: ${props => {
+    if (props.variant === 'success') return '#28a745';
+    if (props.variant === 'danger') return '#dc3545';
+    return '#007bff';
+  }};
   color: white;
   border: none;
   border-radius: 6px;
