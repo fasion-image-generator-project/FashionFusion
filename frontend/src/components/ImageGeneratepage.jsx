@@ -403,12 +403,14 @@ const LoadingOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: ${props => props.theme.background};
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10;
   border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px ${props => props.theme.shadow};
 `;
 
 const ButtonGroup = styled.div`
@@ -1119,6 +1121,67 @@ const PROMPT_EXAMPLES = [
   "navy blue suit with gold buttons"
 ];
 
+// Add Skeleton UI components after other styled components
+const SkeletonContainer = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const SkeletonImage = styled.div`
+  width: 100%;
+  height: 400px;
+  background: linear-gradient(
+    90deg,
+    ${props => props.theme.background} 25%,
+    ${props => props.theme.backgroundLight} 50%,
+    ${props => props.theme.background} 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+  overflow: hidden;
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+`;
+
+const SkeletonText = styled.div`
+  height: 20px;
+  width: 60%;
+  background: linear-gradient(
+    90deg,
+    ${props => props.theme.background} 25%,
+    ${props => props.theme.backgroundLight} 50%,
+    ${props => props.theme.background} 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+`;
+
+const SkeletonButton = styled.div`
+  height: 40px;
+  width: 120px;
+  background: linear-gradient(
+    90deg,
+    ${props => props.theme.background} 25%,
+    ${props => props.theme.backgroundLight} 50%,
+    ${props => props.theme.background} 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 20px;
+`;
+
 /**
  * 메인 ImageGeneratepage 컴포넌트
  * 전체 애플리케이션의 상태와 로직을 관리
@@ -1724,7 +1787,12 @@ const ImageGeneratepage = () => {
                 <ImageContainer>
                   {state.loading && (
                     <LoadingOverlay>
-                      <MemoizedLoadingSpinner />
+                      <SkeletonContainer>
+                        <SkeletonImage />
+                        <SkeletonText />
+                        <SkeletonText />
+                        <SkeletonButton />
+                      </SkeletonContainer>
                     </LoadingOverlay>
                   )}
                   <MemoizedImageMagnifier
@@ -1736,7 +1804,12 @@ const ImageGeneratepage = () => {
 
               {state.loading && !state.initialImage && (
                 <ImageContainer>
-                  <MemoizedLoadingSpinner />
+                  <SkeletonContainer>
+                    <SkeletonImage />
+                    <SkeletonText />
+                    <SkeletonText />
+                    <SkeletonButton />
+                  </SkeletonContainer>
                 </ImageContainer>
               )}
 
@@ -1744,7 +1817,12 @@ const ImageGeneratepage = () => {
                 <ImageContainer>
                   {state.loading && (
                     <LoadingOverlay>
-                      <MemoizedLoadingSpinner />
+                      <SkeletonContainer>
+                        <SkeletonImage />
+                        <SkeletonText />
+                        <SkeletonText />
+                        <SkeletonButton />
+                      </SkeletonContainer>
                     </LoadingOverlay>
                   )}
                   <MemoizedImageMagnifier
