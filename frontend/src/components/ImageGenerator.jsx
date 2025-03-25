@@ -1,33 +1,49 @@
+/**
+ * ImageGenerator Component
+ * 
+ * 텍스트 프롬프트를 기반으로 이미지를 생성하고 변환하는 메인 컴포넌트입니다.
+ * 주요 기능:
+ * - 텍스트 프롬프트 기반 초기 이미지 생성
+ * - 생성된 이미지의 스타일 변환
+ * - 이미지 확대/축소 기능
+ * - 히스토리 관리 (저장, 불러오기, 내보내기)
+ */
+
 // src/components/ImageGenerator.jsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import styled, { createGlobalStyle, keyframes } from "styled-components";
 import { generateInitialImage, generateFinalImage } from "../api";
 
-// 개발 모드 설정 (true: 더미 이미지 사용, false: 실제 API 호출)
-const USE_DUMMY_DATA = true;
+// 개발 및 테스트를 위한 상수 정의
+const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
 
-// 개발용 더미 이미지 데이터 - 파란색 이미지
-const DUMMY_INITIAL_IMAGE = "data:image/svg+xml;base64," + btoa(`
-  <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="#2196F3"/>
-    <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Initial Image</text>
-  </svg>
-`);
+// 더미 이미지 데이터 - 개발 및 테스트용
+const DUMMY_IMAGES = {
+  INITIAL: "data:image/svg+xml;base64," + btoa(`
+    <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#2196F3"/>
+      <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Initial Image</text>
+    </svg>
+  `),
+  FINAL: "data:image/svg+xml;base64," + btoa(`
+    <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#4CAF50"/>
+      <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Transformed Image</text>
+    </svg>
+  `)
+};
 
-// 개발용 더미 이미지 데이터 - 초록색 이미지
-const DUMMY_FINAL_IMAGE = "data:image/svg+xml;base64," + btoa(`
-  <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="#4CAF50"/>
-    <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Transformed Image</text>
-  </svg>
-`);
-
+// 사용 가능한 모델 옵션 정의
 const MODEL_OPTIONS = [
   { id: "cycle-gan-turbo", name: "Cycle GAN-turbo", label: "Cycle GAN-turbo" },
   { id: "cycle-gan", name: "Cycle GAN", label: "Cycle GAN" },
   { id: "style-gan", name: "Style GAN", label: "Style GAN" }
 ];
 
+/**
+ * 로딩 스피너 컴포넌트
+ * 이미지 생성/변환 중 로딩 상태를 표시
+ */
 const LoadingSpinner = styled.div`
   width: 50px;
   height: 50px;
@@ -37,7 +53,10 @@ const LoadingSpinner = styled.div`
   animation: spin 1s linear infinite;
 `;
 
-// 이미지 확대 컴포넌트 수정
+/**
+ * 이미지 확대 컴포넌트
+ * 마우스 오버 시 이미지의 특정 부분을 확대하여 보여줌
+ */
 const ImageMagnifier = ({ imageUrl, alt }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [showMagnifier, setShowMagnifier] = useState(false);
@@ -121,6 +140,10 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
   );
 };
 
+/**
+ * 전역 스타일 정의
+ * 애니메이션 키프레임과 전역적으로 적용될 스타일 설정
+ */
 const GlobalStyle = createGlobalStyle`
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -362,49 +385,172 @@ const HistoryFooter = styled.div`
   justify-content: space-between;
 `;
 
+/**
+ * 메모이제이션된 컴포넌트들
+ * 불필요한 리렌더링을 방지하기 위해 React.memo 사용
+ */
+const MemoizedImageMagnifier = React.memo(ImageMagnifier);
+const MemoizedLoadingSpinner = React.memo(LoadingSpinner);
+
+/**
+ * 히스토리 아이템 컴포넌트
+ * 개별 히스토리 항목을 표시하는 메모이제이션된 컴포넌트
+ */
+const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => (
+  <HistoryItem
+    role="listitem"
+    aria-label={`History item: ${item.prompt}`}
+  >
+    <HistoryItemHeader>
+      <div style={{ fontWeight: "bold" }}>
+        {item.prompt}
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <Button
+          variant="success"
+          onClick={() => onRestore(item)}
+          aria-label={`Restore generation: ${item.prompt}`}
+        >
+          Restore
+        </Button>
+        <Button
+          variant="danger"
+          onClick={() => onDelete(item.id)}
+          aria-label={`Delete history item: ${item.prompt}`}
+        >
+          Delete
+        </Button>
+      </div>
+    </HistoryItemHeader>
+    <HistoryImages>
+      <HistoryImage src={item.initialImage} alt="Initial" />
+      <HistoryImage src={item.finalImage} alt="Final" />
+    </HistoryImages>
+    <HistoryFooter>
+      <span>{item.model}</span>
+      <span>{item.timestamp}</span>
+    </HistoryFooter>
+  </HistoryItem>
+));
+
+/**
+ * 모델 선택 컴포넌트
+ * 스타일 변환에 사용할 모델을 선택하는 메모이제이션된 컴포넌트
+ */
+const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
+  <ModelSelect>
+    <ModelOptions>
+      <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px"
+      }}>
+        {MODEL_OPTIONS.map((option) => (
+          <label
+            key={option.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              cursor: "pointer"
+            }}
+          >
+            <input
+              type="radio"
+              name="model"
+              value={option.id}
+              checked={selectedModel === option.id}
+              onChange={(e) => onModelChange(e.target.value)}
+              style={{ cursor: "pointer" }}
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </ModelOptions>
+  </ModelSelect>
+));
+
+/**
+ * 메인 ImageGenerator 컴포넌트
+ * 전체 애플리케이션의 상태와 로직을 관리
+ */
 const ImageGenerator = () => {
-  const [prompt, setPrompt] = useState("");
-  const [initialImage, setInitialImage] = useState("");
-  const [finalImage, setFinalImage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [selectedModel, setSelectedModel] = useState("cycle-gan-turbo");
+  // 상태 관리
+  const [state, setState] = useState({
+    prompt: "",              // 텍스트 프롬프트
+    initialImage: "",        // 초기 생성된 이미지
+    finalImage: "",          // 변환된 이미지
+    loading: false,          // 로딩 상태
+    error: "",              // 에러 메시지
+    selectedModel: "cycle-gan-turbo"  // 선택된 모델
+  });
+
+  // 히스토리 상태 - localStorage와 동기화
   const [history, setHistory] = useState(() => {
-    // localStorage에서 히스토리 불러오기
     const savedHistory = localStorage.getItem('imageGenerationHistory');
     return savedHistory ? JSON.parse(savedHistory) : [];
   });
+
+  // 사이드바 표시 상태
   const [showSidebar, setShowSidebar] = useState(false);
+
+  // Refs
   const imageSectionRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
 
-  // 히스토리가 변경될 때마다 localStorage에 저장
+  // 메모이제이션된 값들
+  const isGenerateDisabled = useMemo(() =>
+    state.loading || !state.prompt,
+    [state.loading, state.prompt]
+  );
+
+  const canShowModelSelect = useMemo(() =>
+    Boolean(state.initialImage),
+    [state.initialImage]
+  );
+
+  // 효과
   useEffect(() => {
+    // 히스토리 변경 시 localStorage에 저장
     localStorage.setItem('imageGenerationHistory', JSON.stringify(history));
   }, [history]);
 
-  // 히스토리 삭제 함수
-  const handleDeleteHistory = (id) => {
+  // 콜백 함수들
+  /**
+   * 히스토리 항목 삭제 처리
+   */
+  const handleDeleteHistory = useCallback((id) => {
     setHistory(prev => prev.filter(item => item.id !== id));
-  };
+  }, []);
 
-  // 히스토리 전체 삭제 함수
-  const handleClearHistory = () => {
+  /**
+   * 히스토리 전체 삭제 처리
+   */
+  const handleClearHistory = useCallback(() => {
     if (window.confirm('모든 히스토리를 삭제하시겠습니까?')) {
       setHistory([]);
     }
-  };
+  }, []);
 
-  // 히스토리 항목 복원 함수
-  const handleRestoreHistory = (item) => {
-    setPrompt(item.prompt);
-    setInitialImage(item.initialImage);
-    setFinalImage(item.finalImage);
-    setSelectedModel(item.model);
-  };
+  /**
+   * 히스토리 항목 복원 처리
+   */
+  const handleRestoreHistory = useCallback((item) => {
+    setState(prev => ({
+      ...prev,
+      prompt: item.prompt,
+      initialImage: item.initialImage,
+      finalImage: item.finalImage,
+      selectedModel: item.model
+    }));
+  }, []);
 
-  // 히스토리 내보내기 함수
-  const handleExportHistory = () => {
+  /**
+   * 히스토리 내보내기 처리
+   */
+  const handleExportHistory = useCallback(() => {
     const historyData = JSON.stringify(history, null, 2);
     const blob = new Blob([historyData], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
@@ -415,10 +561,12 @@ const ImageGenerator = () => {
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-  };
+  }, [history]);
 
-  // 히스토리 가져오기 함수
-  const handleImportHistory = (event) => {
+  /**
+   * 히스토리 가져오기 처리
+   */
+  const handleImportHistory = useCallback((event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -438,104 +586,151 @@ const ImageGenerator = () => {
       };
       reader.readAsText(file);
     }
-    // 파일 입력값 초기화
     event.target.value = '';
-  };
+  }, []);
 
-  const handleInitialGeneration = async () => {
-    if (!prompt) return;
-    setLoading(true);
-    setError("");
+  /**
+   * 초기 이미지 생성 처리
+   */
+  const handleInitialGeneration = useCallback(async () => {
+    if (!state.prompt) return;
+
+    setState(prev => ({ ...prev, loading: true, error: "" }));
+
     try {
       if (USE_DUMMY_DATA) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        setInitialImage(DUMMY_INITIAL_IMAGE);
+        setState(prev => ({
+          ...prev,
+          initialImage: DUMMY_IMAGES.INITIAL,
+          finalImage: ""
+        }));
       } else {
-        const imageData = await generateInitialImage(prompt);
-        setInitialImage(`data:image/png;base64,${imageData}`);
+        const imageData = await generateInitialImage(state.prompt);
+        setState(prev => ({
+          ...prev,
+          initialImage: `data:image/png;base64,${imageData}`,
+          finalImage: ""
+        }));
       }
-      setFinalImage("");
     } catch (err) {
-      setError(err.message);
+      setState(prev => ({ ...prev, error: err.message }));
     } finally {
-      setLoading(false);
+      setState(prev => ({ ...prev, loading: false }));
     }
-  };
+  }, [state.prompt]);
 
-  const handleFinalGeneration = async () => {
-    if (!initialImage) return;
-    setLoading(true);
-    setError("");
+  /**
+   * 최종 이미지 변환 처리
+   */
+  const handleFinalGeneration = useCallback(async () => {
+    if (!state.initialImage) return;
+
+    setState(prev => ({ ...prev, loading: true, error: "" }));
+
     try {
       if (USE_DUMMY_DATA) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        const finalImageData = DUMMY_FINAL_IMAGE;
-        setFinalImage(finalImageData);
+        const finalImageData = DUMMY_IMAGES.FINAL;
+        setState(prev => ({ ...prev, finalImage: finalImageData }));
 
-        // 히스토리에 추가
         const newHistoryItem = {
           id: Date.now(),
-          prompt,
-          initialImage: DUMMY_INITIAL_IMAGE,
+          prompt: state.prompt,
+          initialImage: state.initialImage,
           finalImage: finalImageData,
-          model: selectedModel,
+          model: state.selectedModel,
           timestamp: new Date().toLocaleString()
         };
         setHistory(prev => [newHistoryItem, ...prev]);
       } else {
-        const imageData = await generateFinalImage(initialImage, selectedModel);
+        const imageData = await generateFinalImage(state.initialImage, state.selectedModel);
         const finalImageData = `data:image/png;base64,${imageData}`;
-        setFinalImage(finalImageData);
+        setState(prev => ({ ...prev, finalImage: finalImageData }));
 
-        // 히스토리에 추가
         const newHistoryItem = {
           id: Date.now(),
-          prompt,
-          initialImage,
+          prompt: state.prompt,
+          initialImage: state.initialImage,
           finalImage: finalImageData,
-          model: selectedModel,
+          model: state.selectedModel,
           timestamp: new Date().toLocaleString()
         };
         setHistory(prev => [newHistoryItem, ...prev]);
       }
     } catch (err) {
-      setError(err.message);
+      setState(prev => ({ ...prev, error: err.message }));
     } finally {
-      setLoading(false);
+      setState(prev => ({ ...prev, loading: false }));
     }
-  };
+  }, [state.initialImage, state.selectedModel, state.prompt]);
 
-  const handleRegenerate = () => {
-    if (finalImage) {
-      // finalImage가 있으면 style transform을 다시 실행
+  /**
+   * 이미지 재생성 처리
+   */
+  const handleRegenerate = useCallback(() => {
+    if (state.finalImage) {
       handleFinalGeneration();
     } else {
-      // finalImage가 없으면 initial 이미지를 다시 생성
       handleInitialGeneration();
     }
-  };
+  }, [state.finalImage, handleFinalGeneration, handleInitialGeneration]);
 
-  const handleReset = () => {
-    setPrompt("");
-    setInitialImage("");
-    setFinalImage("");
-    setError("");
-  };
+  /**
+   * 모든 입력 초기화 처리
+   */
+  const handleReset = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      prompt: "",
+      initialImage: "",
+      finalImage: "",
+      error: ""
+    }));
+  }, []);
+
+  /**
+   * 모델 변경 처리
+   */
+  const handleModelChange = useCallback((model) => {
+    setState(prev => ({ ...prev, selectedModel: model }));
+  }, []);
+
+  // 렌더링 메서드들
+  /**
+   * 프롬프트 표시 영역 렌더링
+   */
+  const renderPromptDisplay = useMemo(() => (
+    state.prompt && (
+      <PromptDisplay>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontWeight: "bold" }}>prompt:</span>
+          <span>{state.prompt}</span>
+        </div>
+      </PromptDisplay>
+    )
+  ), [state.prompt]);
+
+  /**
+   * 히스토리 항목들 렌더링
+   */
+  const renderHistoryItems = useMemo(() => (
+    history.map(item => (
+      <HistoryItemComponent
+        key={item.id}
+        item={item}
+        onRestore={handleRestoreHistory}
+        onDelete={handleDeleteHistory}
+      />
+    ))
+  ), [history, handleRestoreHistory, handleDeleteHistory]);
 
   return (
     <>
       <GlobalStyle />
       <Container>
         <MainContent>
-          {prompt && (
-            <PromptDisplay>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontWeight: "bold" }}>prompt:</span>
-                <span>{prompt}</span>
-              </div>
-            </PromptDisplay>
-          )}
-
+          {renderPromptDisplay}
           <ContentArea>
             <ImageControlArea>
               <Form
@@ -547,75 +742,77 @@ const ImageGenerator = () => {
               >
                 <Input
                   type="text"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
+                  value={state.prompt}
+                  onChange={(e) => setState(prev => ({ ...prev, prompt: e.target.value }))}
                   placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
-                  disabled={loading}
+                  disabled={state.loading}
                   aria-required="true"
                 />
                 <Button
                   type="submit"
-                  disabled={loading || !prompt}
+                  disabled={isGenerateDisabled}
                   aria-label="Generate initial image"
                 >
                   생성
                 </Button>
               </Form>
 
-              {initialImage && !finalImage && (
+              {/* Image display logic */}
+              {state.initialImage && !state.finalImage && (
                 <ImageContainer>
-                  {loading && (
+                  {state.loading && (
                     <LoadingOverlay>
-                      <LoadingSpinner />
+                      <MemoizedLoadingSpinner />
                     </LoadingOverlay>
                   )}
-                  <ImageMagnifier
-                    imageUrl={initialImage}
+                  <MemoizedImageMagnifier
+                    imageUrl={state.initialImage}
                     alt="Initial"
                   />
                 </ImageContainer>
               )}
 
-              {loading && !initialImage && (
+              {state.loading && !state.initialImage && (
                 <ImageContainer>
-                  <LoadingSpinner />
+                  <MemoizedLoadingSpinner />
                 </ImageContainer>
               )}
 
-              {finalImage && (
+              {state.finalImage && (
                 <ImageContainer>
-                  {loading && (
+                  {state.loading && (
                     <LoadingOverlay>
-                      <LoadingSpinner />
+                      <MemoizedLoadingSpinner />
                     </LoadingOverlay>
                   )}
-                  <ImageMagnifier
-                    imageUrl={finalImage}
+                  <MemoizedImageMagnifier
+                    imageUrl={state.finalImage}
                     alt="Transformed"
                   />
                 </ImageContainer>
               )}
 
-              {initialImage && (
+              {/* Button controls */}
+              {state.initialImage && (
                 <ButtonGroup role="group" aria-label="Image control buttons">
                   <Button
                     onClick={handleRegenerate}
-                    disabled={loading}
+                    disabled={state.loading}
                     aria-label="Regenerate image"
                   >
                     regenerate
                   </Button>
                   <Button
                     onClick={handleReset}
-                    disabled={loading}
+                    disabled={state.loading}
                     aria-label="Reset all inputs"
                   >
                     reset
                   </Button>
-                  {!finalImage ? (
+                  {!state.finalImage ? (
                     <Button
                       onClick={handleFinalGeneration}
-                      disabled={loading}
+                      disabled={state.loading}
                       aria-label="Transform image style"
                     >
                       style transform
@@ -624,7 +821,7 @@ const ImageGenerator = () => {
                     <Button
                       variant="success"
                       onClick={() => {
-                        const byteCharacters = atob(finalImage.split(',')[1]);
+                        const byteCharacters = atob(state.finalImage.split(',')[1]);
                         const byteNumbers = new Array(byteCharacters.length);
                         for (let i = 0; i < byteCharacters.length; i++) {
                           byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -649,45 +846,17 @@ const ImageGenerator = () => {
               )}
             </ImageControlArea>
 
-            {initialImage && (
-              <ModelSelect>
-                <ModelOptions>
-                  <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px"
-                  }}>
-                    {MODEL_OPTIONS.map((option) => (
-                      <label
-                        key={option.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          cursor: "pointer"
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="model"
-                          value={option.id}
-                          checked={selectedModel === option.id}
-                          onChange={(e) => setSelectedModel(e.target.value)}
-                          style={{ cursor: "pointer" }}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </ModelOptions>
-              </ModelSelect>
+            {canShowModelSelect && (
+              <ModelSelectComponent
+                selectedModel={state.selectedModel}
+                onModelChange={handleModelChange}
+              />
             )}
           </ContentArea>
 
-          {error && (
+          {state.error && (
             <ErrorMessage>
-              <p>{error}</p>
+              <p>{state.error}</p>
             </ErrorMessage>
           )}
         </MainContent>
@@ -762,49 +931,7 @@ const ImageGenerator = () => {
           </SidebarHeader>
 
           <HistoryList role="list" aria-label="History items">
-            {history.map(item => (
-              <HistoryItem
-                key={item.id}
-                role="listitem"
-                aria-label={`History item: ${item.prompt}`}
-              >
-                <HistoryItemHeader>
-                  <div style={{ fontWeight: "bold" }}>
-                    {item.prompt}
-                  </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <Button
-                      variant="success"
-                      onClick={() => handleRestoreHistory(item)}
-                      aria-label={`Restore generation: ${item.prompt}`}
-                    >
-                      Restore
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => handleDeleteHistory(item.id)}
-                      aria-label={`Delete history item: ${item.prompt}`}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </HistoryItemHeader>
-                <HistoryImages>
-                  <HistoryImage
-                    src={item.initialImage}
-                    alt="Initial"
-                  />
-                  <HistoryImage
-                    src={item.finalImage}
-                    alt="Final"
-                  />
-                </HistoryImages>
-                <HistoryFooter>
-                  <span>{item.model}</span>
-                  <span>{item.timestamp}</span>
-                </HistoryFooter>
-              </HistoryItem>
-            ))}
+            {renderHistoryItems}
             {history.length === 0 && (
               <div style={{
                 textAlign: "center",
