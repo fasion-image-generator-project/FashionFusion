@@ -19,23 +19,36 @@ if not HF_API_TOKEN:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize InferenceClient
-client = InferenceClient(token=HF_API_TOKEN)
+# Stable Diffusion model IDs
+STABLE_DIFFUSION_MODELS = {
+    "Stable Diffusion 1.5": "runwayml/stable-diffusion-v1-5",
+    "Stable Diffusion 3.5": "stabilityai/stable-diffusion-3.5-large",
+}
+
+# Initialize InferenceClient dictionary for each model
+clients = {
+    model_name: InferenceClient(model_id, token=HF_API_TOKEN)
+    for model_name, model_id in STABLE_DIFFUSION_MODELS.items()
+}
 
 
-async def run_initial_inference(prompt: str):
+async def run_initial_inference(prompt: str, model: str):
     """
-    Generate an image from a text prompt using the Stable Diffusion 3.5 API,
-    displays the image, and returns the image as a Base64-encoded string.
+    Generate an image from a text prompt using the selected Stable Diffusion model.
 
     Args:
         prompt (str): The text prompt for image generation.
+        model (str): The selected model name ("Stable Diffusion 1.5" or "Stable Diffusion 3.5")
 
     Returns:
         str: The Base64-encoded string of the generated image.
     """
     try:
-        response = client.text_to_image(model=MODEL_IDS["text_to_image"], prompt=prompt)
+        if model not in STABLE_DIFFUSION_MODELS:
+            raise ValueError(f"Invalid model selection: {model}")
+
+        client = clients[model]
+        response = client.text_to_image(prompt=prompt)
 
         with BytesIO() as buffer:
             response.save(buffer, format="JPEG")
