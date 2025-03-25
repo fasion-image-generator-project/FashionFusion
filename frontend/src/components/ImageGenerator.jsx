@@ -1,14 +1,26 @@
 // src/components/ImageGenerator.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import styled, { createGlobalStyle, keyframes } from "styled-components";
 import { generateInitialImage, generateFinalImage } from "../api";
 
 // 개발 모드 설정 (true: 더미 이미지 사용, false: 실제 API 호출)
 const USE_DUMMY_DATA = true;
 
-// 개발용 더미 이미지 데이터
-const DUMMY_INITIAL_IMAGE = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gOTAK/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAZABkAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A+t6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//2Q==";
+// 개발용 더미 이미지 데이터 - 파란색 이미지
+const DUMMY_INITIAL_IMAGE = "data:image/svg+xml;base64," + btoa(`
+  <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="#2196F3"/>
+    <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Initial Image</text>
+  </svg>
+`);
 
-const DUMMY_FINAL_IMAGE = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gOTAK/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAZABkAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8A+t6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//2Q==";
+// 개발용 더미 이미지 데이터 - 초록색 이미지
+const DUMMY_FINAL_IMAGE = "data:image/svg+xml;base64," + btoa(`
+  <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100%" height="100%" fill="#4CAF50"/>
+    <text x="50%" y="50%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Transformed Image</text>
+  </svg>
+`);
 
 const MODEL_OPTIONS = [
   { id: "cycle-gan-turbo", name: "Cycle GAN-turbo", label: "Cycle GAN-turbo" },
@@ -16,28 +28,14 @@ const MODEL_OPTIONS = [
   { id: "style-gan", name: "Style GAN", label: "Style GAN" }
 ];
 
-const LoadingSpinner = () => (
-  <div style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "10px"
-  }}>
-    <div style={{
-      width: "40px",
-      height: "40px",
-      border: "4px solid #f3f3f3",
-      borderTop: "4px solid #007bff",
-      borderRadius: "50%",
-      animation: "spin 1s linear infinite",
-      "@keyframes spin": {
-        "0%": { transform: "rotate(0deg)" },
-        "100%": { transform: "rotate(360deg)" }
-      }
-    }} />
-    <p style={{ color: "#666", fontSize: "1.1rem" }}>생성 중...</p>
-  </div>
-);
+const LoadingSpinner = styled.div`
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+`;
 
 // 이미지 확대 컴포넌트
 const ImageMagnifier = ({ imageUrl, alt }) => {
@@ -115,6 +113,234 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
     </div>
   );
 };
+
+const GlobalStyle = createGlobalStyle`
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes slideOut {
+    from { transform: translateX(0); }
+    to { transform: translateX(100%); }
+  }
+`;
+
+const Container = styled.div`
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+`;
+
+const MainContent = styled.div`
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 40px 20px;
+  margin: 20px;
+`;
+
+const PromptDisplay = styled.div`
+  width: 100%;
+  background-color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const ContentArea = styled.div`
+  display: flex;
+  gap: 20px;
+  width: calc(100% + 38px);
+`;
+
+const ImageControlArea = styled.div`
+  flex: 1;
+  background-color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const Form = styled.form`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+`;
+
+const Input = styled.input`
+  flex: 1;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+`;
+
+const Button = styled.button`
+  padding: 12px 24px;
+  background-color: ${props => props.variant === 'success' ? '#28a745' : '#007bff'};
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  opacity: ${props => props.disabled ? 0.6 : 1};
+  font-size: 1rem;
+  white-space: nowrap;
+`;
+
+const ImageContainer = styled.div`
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+const StyledImage = styled.img`
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  object-fit: contain;
+  aspect-ratio: 1;
+`;
+
+const LoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  border-radius: 8px;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+`;
+
+const ModelSelect = styled.div`
+  background-color: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 160px;
+  height: fit-content;
+`;
+
+const ModelOptions = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const ErrorMessage = styled.div`
+  padding: 20px;
+  background-color: #ffebee;
+  border-radius: 6px;
+  color: #d32f2f;
+`;
+
+const HistoryButton = styled.div`
+  position: fixed;
+  right: ${props => props.showSidebar ? "320px" : "20px"};
+  top: 20px;
+  z-index: 1000;
+  transition: right 0.3s ease-in-out;
+`;
+
+const SidebarTrigger = styled.div`
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 20px;
+  height: 100vh;
+  z-index: 998;
+`;
+
+const Sidebar = styled.div`
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 300px;
+  background-color: white;
+  height: 100vh;
+  box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+  transform: ${props => props.show ? "translateX(0)" : "translateX(100%)"};
+  transition: transform 0.3s ease-in-out;
+  z-index: 999;
+  padding: 20px;
+  overflow-y: auto;
+`;
+
+const SidebarHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const HistoryList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const HistoryItem = styled.div`
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+`;
+
+const HistoryItemHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+`;
+
+const HistoryImages = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
+const HistoryImage = styled.img`
+  width: 50%;
+  height: auto;
+  border-radius: 4px;
+`;
+
+const HistoryFooter = styled.div`
+  font-size: 0.9em;
+  color: #666;
+  display: flex;
+  justify-content: space-between;
+`;
 
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
@@ -203,10 +429,10 @@ const ImageGenerator = () => {
     try {
       if (USE_DUMMY_DATA) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        setInitialImage(DUMMY_INITIAL_IMAGE.split(',')[1]);
+        setInitialImage(DUMMY_INITIAL_IMAGE);
       } else {
         const imageData = await generateInitialImage(prompt);
-        setInitialImage(imageData);
+        setInitialImage(`data:image/png;base64,${imageData}`);
       }
       setFinalImage("");
     } catch (err) {
@@ -223,7 +449,22 @@ const ImageGenerator = () => {
     try {
       if (USE_DUMMY_DATA) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        const finalImageData = DUMMY_FINAL_IMAGE.split(',')[1];
+        const finalImageData = DUMMY_FINAL_IMAGE;
+        setFinalImage(finalImageData);
+
+        // 히스토리에 추가
+        const newHistoryItem = {
+          id: Date.now(),
+          prompt,
+          initialImage: DUMMY_INITIAL_IMAGE,
+          finalImage: finalImageData,
+          model: selectedModel,
+          timestamp: new Date().toLocaleString()
+        };
+        setHistory(prev => [newHistoryItem, ...prev]);
+      } else {
+        const imageData = await generateFinalImage(initialImage, selectedModel);
+        const finalImageData = `data:image/png;base64,${imageData}`;
         setFinalImage(finalImageData);
 
         // 히스토리에 추가
@@ -232,20 +473,6 @@ const ImageGenerator = () => {
           prompt,
           initialImage,
           finalImage: finalImageData,
-          model: selectedModel,
-          timestamp: new Date().toLocaleString()
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
-      } else {
-        const imageData = await generateFinalImage(initialImage, selectedModel);
-        setFinalImage(imageData);
-
-        // 히스토리에 추가
-        const newHistoryItem = {
-          id: Date.now(),
-          prompt,
-          initialImage,
-          finalImage: imageData,
           model: selectedModel,
           timestamp: new Date().toLocaleString()
         };
@@ -276,588 +503,254 @@ const ImageGenerator = () => {
   };
 
   return (
-    <div style={{
-      width: "100vw",
-      minHeight: "100vh",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: "#f5f5f5",
-      margin: 0,
-      padding: 0,
-      position: "relative",
-      overflow: "hidden"
-    }}>
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          @keyframes slideIn {
-            from { transform: translateX(100%); }
-            to { transform: translateX(0); }
-          }
-          @keyframes slideOut {
-            from { transform: translateX(0); }
-            to { transform: translateX(100%); }
-          }
-        `}
-      </style>
-      <div style={{
-        width: "100%",
-        maxWidth: "800px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "20px",
-        padding: "40px 20px",
-        margin: "20px"
-      }}>
-        {/* 프롬프트 표시 */}
-        {prompt && (
-          <div style={{
-            width: "100%",
-            backgroundColor: "white",
-            padding: "20px",
-            borderRadius: "12px",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontWeight: "bold" }}>prompt:</span>
-              <span>{prompt}</span>
-            </div>
-          </div>
-        )}
+    <>
+      <GlobalStyle />
+      <Container>
+        <MainContent>
+          {prompt && (
+            <PromptDisplay>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontWeight: "bold" }}>prompt:</span>
+                <span>{prompt}</span>
+              </div>
+            </PromptDisplay>
+          )}
 
-        {/* 메인 컨텐츠 영역 */}
-        <div style={{
-          display: "flex",
-          gap: "20px",
-          width: "calc(100% + 38px)"
-        }}>
-          {/* 이미지 및 컨트롤 영역 */}
-          <div style={{
-            flex: 1,
-            backgroundColor: "white",
-            padding: "20px",
-            borderRadius: "12px",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
-          }}>
-            {/* 프롬프트 입력 폼 */}
-            <form
-              onSubmit={(e) => {
+          <ContentArea>
+            <ImageControlArea>
+              <Form onSubmit={(e) => {
                 e.preventDefault();
                 handleInitialGeneration();
-              }}
-              style={{
-                display: "flex",
-                gap: "10px",
-                marginBottom: "20px"
-              }}
-            >
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
-                disabled={loading}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  fontSize: "1rem"
-                }}
-              />
-              <button
-                type="submit"
-                disabled={loading || !prompt}
-                style={{
-                  padding: "12px 24px",
-                  backgroundColor: "#007bff",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: loading || !prompt ? "not-allowed" : "pointer",
-                  opacity: loading || !prompt ? 0.6 : 1,
-                  fontSize: "1rem",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                생성
-              </button>
-            </form>
-
-            {/* 이미지 표시 영역 */}
-            {initialImage && !finalImage && (
-              <div style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "20px",
-                marginBottom: "20px",
-                position: "relative"
               }}>
-                {loading && (
-                  <div style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: "rgba(255, 255, 255, 0.8)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: "8px",
-                    zIndex: 1
-                  }}>
-                    <LoadingSpinner />
-                  </div>
-                )}
-                <ImageMagnifier
-                  imageUrl={`data:image/png;base64,${initialImage}`}
-                  alt="Generated"
-                />
-              </div>
-            )}
-
-            {/* 초기 로딩 상태 */}
-            {loading && !initialImage && (
-              <div style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "20px",
-                marginBottom: "20px",
-                backgroundColor: "white",
-                minHeight: "200px",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center"
-              }}>
-                <LoadingSpinner />
-              </div>
-            )}
-
-            {/* 변환된 이미지 */}
-            {finalImage && (
-              <div style={{
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                padding: "20px",
-                marginBottom: "20px",
-                position: "relative"
-              }}>
-                {loading && (
-                  <div style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: "rgba(255, 255, 255, 0.8)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    borderRadius: "8px",
-                    zIndex: 1
-                  }}>
-                    <LoadingSpinner />
-                  </div>
-                )}
-                <ImageMagnifier
-                  imageUrl={`data:image/png;base64,${finalImage}`}
-                  alt="Transformed"
-                />
-              </div>
-            )}
-
-            {/* 액션 버튼들 */}
-            {initialImage && (
-              <div style={{
-                display: "flex",
-                gap: "10px",
-                justifyContent: "center",
-                marginTop: "20px"
-              }}>
-                <button
-                  onClick={handleRegenerate}
+                <Input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
                   disabled={loading}
-                  style={{
-                    padding: "8px 24px",
-                    backgroundColor: "#007bff",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  regenerate
-                </button>
-                <button
-                  onClick={handleReset}
-                  disabled={loading}
-                  style={{
-                    padding: "8px 24px",
-                    backgroundColor: "#007bff",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  reset
-                </button>
-                {!finalImage ? (
-                  <button
-                    onClick={handleFinalGeneration}
-                    disabled={loading}
-                    style={{
-                      padding: "8px 24px",
-                      backgroundColor: "#007bff",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: loading ? "not-allowed" : "pointer",
-                      opacity: loading ? 0.6 : 1
-                    }}
-                  >
-                    style transform
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      // Base64 데이터를 Blob으로 변환
-                      const byteCharacters = atob(finalImage);
-                      const byteNumbers = new Array(byteCharacters.length);
-                      for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                      }
-                      const byteArray = new Uint8Array(byteNumbers);
-                      const blob = new Blob([byteArray], { type: 'image/png' });
+                />
+                <Button type="submit" disabled={loading || !prompt}>
+                  생성
+                </Button>
+              </Form>
 
-                      // Blob URL 생성 및 다운로드
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'transformed_image.png';
-                      document.body.appendChild(a);
-                      a.click();
-                      window.URL.revokeObjectURL(url);
-                      document.body.removeChild(a);
-                    }}
-                    style={{
-                      padding: "8px 24px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    download
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+              {initialImage && !finalImage && (
+                <ImageContainer>
+                  {loading && (
+                    <LoadingOverlay>
+                      <LoadingSpinner />
+                    </LoadingOverlay>
+                  )}
+                  <StyledImage
+                    src={initialImage}
+                    alt="Initial"
+                  />
+                </ImageContainer>
+              )}
 
-          {/* 모델 선택 라디오 버튼 */}
-          {initialImage && (
-            <div style={{
-              backgroundColor: "white",
-              padding: "20px",
-              borderRadius: "12px",
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-              width: "160px",
-              height: "fit-content"
-            }}>
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px"
-              }}>
-                <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
-                <div style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px"
-                }}>
-                  {MODEL_OPTIONS.map((option) => (
-                    <label
-                      key={option.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        cursor: "pointer"
+              {loading && !initialImage && (
+                <ImageContainer>
+                  <LoadingSpinner />
+                </ImageContainer>
+              )}
+
+              {finalImage && (
+                <ImageContainer>
+                  {loading && (
+                    <LoadingOverlay>
+                      <LoadingSpinner />
+                    </LoadingOverlay>
+                  )}
+                  <StyledImage
+                    src={finalImage}
+                    alt="Transformed"
+                  />
+                </ImageContainer>
+              )}
+
+              {initialImage && (
+                <ButtonGroup>
+                  <Button onClick={handleRegenerate} disabled={loading}>
+                    regenerate
+                  </Button>
+                  <Button onClick={handleReset} disabled={loading}>
+                    reset
+                  </Button>
+                  {!finalImage ? (
+                    <Button onClick={handleFinalGeneration} disabled={loading}>
+                      style transform
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="success"
+                      onClick={() => {
+                        const byteCharacters = atob(finalImage.split(',')[1]);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: 'image/png' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'transformed_image.png';
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
                       }}
                     >
-                      <input
-                        type="radio"
-                        name="model"
-                        value={option.id}
-                        checked={selectedModel === option.id}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        style={{ cursor: "pointer" }}
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
+                      download
+                    </Button>
+                  )}
+                </ButtonGroup>
+              )}
+            </ImageControlArea>
+
+            {initialImage && (
+              <ModelSelect>
+                <ModelOptions>
+                  <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
+                  <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px"
+                  }}>
+                    {MODEL_OPTIONS.map((option) => (
+                      <label
+                        key={option.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          cursor: "pointer"
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="model"
+                          value={option.id}
+                          checked={selectedModel === option.id}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </ModelOptions>
+              </ModelSelect>
+            )}
+          </ContentArea>
+
+          {error && (
+            <ErrorMessage>
+              <p>{error}</p>
+            </ErrorMessage>
           )}
-        </div>
+        </MainContent>
 
-        {/* 에러 메시지 */}
-        {error && (
-          <div style={{
-            padding: "20px",
-            backgroundColor: "#ffebee",
-            borderRadius: "6px",
-            color: "#d32f2f"
-          }}>
-            <p>{error}</p>
-          </div>
-        )}
-      </div>
+        <HistoryButton showSidebar={showSidebar}>
+          <Button onClick={() => setShowSidebar(!showSidebar)}>
+            {showSidebar ? "Hide History" : "Show History"}
+          </Button>
+        </HistoryButton>
 
-      {/* 히스토리 버튼 */}
-      <div
-        style={{
-          position: "fixed",
-          right: showSidebar ? "320px" : "20px",
-          top: "20px",
-          zIndex: 1000,
-          transition: "right 0.3s ease-in-out"
-        }}
-      >
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
+        <SidebarTrigger
+          onMouseEnter={() => {
+            if (sidebarTimeoutRef.current) {
+              clearTimeout(sidebarTimeoutRef.current);
+            }
+            setShowSidebar(true);
+          }}
+        />
+
+        <Sidebar
+          show={showSidebar}
+          onMouseLeave={() => {
+            sidebarTimeoutRef.current = setTimeout(() => {
+              setShowSidebar(false);
+            }, 300);
           }}
         >
-          <span>{showSidebar ? "Hide History" : "Show History"}</span>
-        </button>
-      </div>
+          <SidebarHeader>
+            <h3 style={{ margin: 0 }}>Generation History</h3>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {history.length > 0 && (
+                <>
+                  <Button variant="success" onClick={handleExportHistory}>
+                    Export
+                  </Button>
+                  <Button variant="danger" onClick={handleClearHistory}>
+                    Clear All
+                  </Button>
+                </>
+              )}
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportHistory}
+                style={{ display: "none" }}
+                id="history-import"
+              />
+              <Button onClick={() => document.getElementById('history-import').click()}>
+                Import
+              </Button>
+            </div>
+          </SidebarHeader>
 
-      {/* 히스토리 사이드바 트리거 영역 */}
-      <div
-        onMouseEnter={() => {
-          if (sidebarTimeoutRef.current) {
-            clearTimeout(sidebarTimeoutRef.current);
-          }
-          setShowSidebar(true);
-        }}
-        style={{
-          position: "fixed",
-          right: 0,
-          top: 0,
-          width: "20px",
-          height: "100vh",
-          zIndex: 998
-        }}
-      />
-
-      {/* 히스토리 사이드바 */}
-      <div
-        onMouseLeave={() => {
-          sidebarTimeoutRef.current = setTimeout(() => {
-            setShowSidebar(false);
-          }, 300);
-        }}
-        style={{
-          position: "fixed",
-          right: 0,
-          top: 0,
-          width: "300px",
-          backgroundColor: "white",
-          height: "100vh",
-          boxShadow: "-2px 0 5px rgba(0,0,0,0.1)",
-          transform: showSidebar ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.3s ease-in-out",
-          zIndex: 999,
-          padding: "20px",
-          overflowY: "auto"
-        }}
-      >
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px"
-        }}>
-          <h3 style={{ margin: 0 }}>Generation History</h3>
-          <div style={{ display: "flex", gap: "8px" }}>
-            {history.length > 0 && (
-              <>
-                <button
-                  onClick={handleExportHistory}
-                  style={{
-                    padding: "4px 8px",
-                    backgroundColor: "#28a745",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "0.8rem"
-                  }}
-                >
-                  Export
-                </button>
-                <button
-                  onClick={handleClearHistory}
-                  style={{
-                    padding: "4px 8px",
-                    backgroundColor: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    fontSize: "0.8rem"
-                  }}
-                >
-                  Clear All
-                </button>
-              </>
-            )}
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleImportHistory}
-              style={{ display: "none" }}
-              id="history-import"
-            />
-            <button
-              onClick={() => document.getElementById('history-import').click()}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#007bff",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontSize: "0.8rem"
-              }}
-            >
-              Import
-            </button>
-          </div>
-        </div>
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "20px"
-        }}>
-          {history.map(item => (
-            <div
-              key={item.id}
-              style={{
-                padding: "15px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-                backgroundColor: "#fff",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-              }}
-            >
+          <HistoryList>
+            {history.map(item => (
+              <HistoryItem key={item.id}>
+                <HistoryItemHeader>
+                  <div style={{ fontWeight: "bold" }}>
+                    {item.prompt}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button
+                      variant="success"
+                      onClick={() => handleRestoreHistory(item)}
+                    >
+                      Restore
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => handleDeleteHistory(item.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </HistoryItemHeader>
+                <HistoryImages>
+                  <HistoryImage
+                    src={item.initialImage}
+                    alt="Initial"
+                  />
+                  <HistoryImage
+                    src={item.finalImage}
+                    alt="Final"
+                  />
+                </HistoryImages>
+                <HistoryFooter>
+                  <span>{item.model}</span>
+                  <span>{item.timestamp}</span>
+                </HistoryFooter>
+              </HistoryItem>
+            ))}
+            {history.length === 0 && (
               <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "10px"
-              }}>
-                <div style={{ fontWeight: "bold" }}>
-                  {item.prompt}
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => handleRestoreHistory(item)}
-                    style={{
-                      padding: "4px 8px",
-                      backgroundColor: "#28a745",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "0.8rem"
-                    }}
-                  >
-                    Restore
-                  </button>
-                  <button
-                    onClick={() => handleDeleteHistory(item.id)}
-                    style={{
-                      padding: "4px 8px",
-                      backgroundColor: "#dc3545",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "0.8rem"
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              <div style={{
-                display: "flex",
-                gap: "10px",
-                marginBottom: "10px"
-              }}>
-                <img
-                  src={`data:image/png;base64,${item.initialImage}`}
-                  alt="Initial"
-                  style={{
-                    width: "50%",
-                    height: "auto",
-                    borderRadius: "4px"
-                  }}
-                />
-                <img
-                  src={`data:image/png;base64,${item.finalImage}`}
-                  alt="Final"
-                  style={{
-                    width: "50%",
-                    height: "auto",
-                    borderRadius: "4px"
-                  }}
-                />
-              </div>
-              <div style={{
-                fontSize: "0.9em",
+                textAlign: "center",
                 color: "#666",
-                display: "flex",
-                justifyContent: "space-between"
+                padding: "20px"
               }}>
-                <span>{item.model}</span>
-                <span>{item.timestamp}</span>
+                No history yet
               </div>
-            </div>
-          ))}
-          {history.length === 0 && (
-            <div style={{
-              textAlign: "center",
-              color: "#666",
-              padding: "20px"
-            }}>
-              No history yet
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+            )}
+          </HistoryList>
+        </Sidebar>
+      </Container>
+    </>
   );
 };
 
