@@ -418,18 +418,107 @@ const ButtonGroup = styled.div`
   margin-top: 20px;
 `;
 
+const ModelCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 12px;
+  background-color: ${props => props.isSelected ? props.theme.primary + '20' : props.theme.surface};
+  border: 2px solid ${props => props.isSelected ? props.theme.primary : 'transparent'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px ${props => props.theme.shadow};
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: ${props => props.isSelected ? props.theme.primary : 'transparent'};
+    transition: all 0.3s ease;
+  }
+`;
+
+const ModelHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+`;
+
+const ModelIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: ${props => props.theme.primary + '20'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${props => props.theme.primary};
+  font-size: 1.2rem;
+`;
+
+const ModelTitle = styled.div`
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: ${props => props.theme.text};
+`;
+
+const ModelDescription = styled.div`
+  margin-bottom: 8px;
+  color: ${props => props.theme.textSecondary};
+`;
+
+const ModelFeatures = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const FeatureItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: ${props => props.isPro ? props.theme.success : props.theme.danger};
+`;
+
+const FeatureIcon = styled.span`
+  font-size: 1rem;
+`;
+
 const ModelSelect = styled.div`
   background-color: ${props => props.theme.surface};
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid ${props => props.theme.border};
+  border-radius: 12px;
+  padding: 20px;
   margin-bottom: 20px;
+  box-shadow: 0 2px 8px ${props => props.theme.shadow};
 `;
 
 const ModelOptions = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+`;
+
+const ModelSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const SectionTitle = styled.div`
+  font-weight: 600;
+  color: ${props => props.theme.textSecondary};
+  margin-bottom: 8px;
 `;
 
 const ErrorMessage = styled.div`
@@ -627,11 +716,6 @@ const ModelOptionContainer = styled.div`
   }
 `;
 
-const ModelDescription = styled.div`
-  margin-bottom: 8px;
-  color: ${props => props.theme.textSecondary};
-`;
-
 const ProsConsList = styled.div`
   margin-top: 8px;
 `;
@@ -653,49 +737,43 @@ const ProsConsLabel = styled.span`
 const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
   <ModelSelect>
     <ModelOptions>
-      <div style={{ fontWeight: "bold", color: "#666" }}>Model select</div>
-      <div style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px"
-      }}>
-        {MODEL_OPTIONS.map((option) => (
-          <ModelOptionContainer key={option.id}>
-            <ModelOption>
-              <input
-                type="radio"
-                name="model"
-                value={option.id}
-                checked={selectedModel === option.id}
-                onChange={(e) => onModelChange(e.target.value)}
-                style={{ cursor: "pointer" }}
-              />
-              {option.label}
-            </ModelOption>
-            <ModelTooltip>
-              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
-              <ProsConsList>
-                <ProsConsItem>
-                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
-                  <div>
-                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
-                      <div key={index}>• {pro}</div>
-                    ))}
-                  </div>
-                </ProsConsItem>
-                <ProsConsItem>
-                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
-                  <div>
-                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
-                      <div key={index}>• {con}</div>
-                    ))}
-                  </div>
-                </ProsConsItem>
-              </ProsConsList>
-            </ModelTooltip>
-          </ModelOptionContainer>
-        ))}
-      </div>
+      <ModelSection>
+        <SectionTitle>Select Initial Model</SectionTitle>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: "16px"
+        }}>
+          {INITIAL_MODEL_OPTIONS.map((option) => (
+            <ModelCard
+              key={option.id}
+              isSelected={selectedModel === option.id}
+              onClick={() => onModelChange(option.id)}
+            >
+              <ModelHeader>
+                <ModelIcon>
+                  {option.id.includes("Stable Diffusion") ? "🎨" :
+                    option.id.includes("Disco") ? "💃" : "✨"}
+                </ModelIcon>
+                <ModelTitle>{option.label}</ModelTitle>
+              </ModelHeader>
+              <ModelDescription>
+                {MODEL_DESCRIPTIONS[option.id].description}
+              </ModelDescription>
+              <ModelFeatures>
+                <FeatureItem isPro>
+                  <FeatureIcon>✓</FeatureIcon>
+                  {MODEL_DESCRIPTIONS[option.id].pros[0]}
+                </FeatureItem>
+                <FeatureItem isPro={false}>
+                  <FeatureIcon>✗</FeatureIcon>
+                  {MODEL_DESCRIPTIONS[option.id].cons[0]}
+                </FeatureItem>
+              </ModelFeatures>
+            </ModelCard>
+          ))}
+        </div>
+      </ModelSection>
     </ModelOptions>
   </ModelSelect>
 ));
@@ -1415,49 +1493,43 @@ const ImageGeneratepage = () => {
                 <>
                   <ModelSelect>
                     <ModelOptions>
-                      <div style={{ fontWeight: "bold", marginBottom: "10px", color: props => props.theme.textSecondary }}>Select Initial Model</div>
-                      <div style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px"
-                      }}>
-                        {INITIAL_MODEL_OPTIONS.map((option) => (
-                          <ModelOptionContainer key={option.id}>
-                            <ModelOption>
-                              <input
-                                type="radio"
-                                name="initialModel"
-                                value={option.id}
-                                checked={state.selectedInitialModel === option.id}
-                                onChange={(e) => handleInitialModelChange(e.target.value)}
-                                style={{ cursor: "pointer" }}
-                              />
-                              {option.label}
-                            </ModelOption>
-                            <ModelTooltip>
-                              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
-                              <ProsConsList>
-                                <ProsConsItem>
-                                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
-                                  <div>
-                                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
-                                      <div key={index}>• {pro}</div>
-                                    ))}
-                                  </div>
-                                </ProsConsItem>
-                                <ProsConsItem>
-                                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
-                                  <div>
-                                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
-                                      <div key={index}>• {con}</div>
-                                    ))}
-                                  </div>
-                                </ProsConsItem>
-                              </ProsConsList>
-                            </ModelTooltip>
-                          </ModelOptionContainer>
-                        ))}
-                      </div>
+                      <ModelSection>
+                        <SectionTitle>Select Initial Model</SectionTitle>
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                          gap: "16px"
+                        }}>
+                          {INITIAL_MODEL_OPTIONS.map((option) => (
+                            <ModelCard
+                              key={option.id}
+                              isSelected={state.selectedInitialModel === option.id}
+                              onClick={() => handleInitialModelChange(option.id)}
+                            >
+                              <ModelHeader>
+                                <ModelIcon>
+                                  {option.id.includes("Stable Diffusion") ? "🎨" :
+                                    option.id.includes("Disco") ? "💃" : "✨"}
+                                </ModelIcon>
+                                <ModelTitle>{option.label}</ModelTitle>
+                              </ModelHeader>
+                              <ModelDescription>
+                                {MODEL_DESCRIPTIONS[option.id].description}
+                              </ModelDescription>
+                              <ModelFeatures>
+                                <FeatureItem isPro>
+                                  <FeatureIcon>✓</FeatureIcon>
+                                  {MODEL_DESCRIPTIONS[option.id].pros[0]}
+                                </FeatureItem>
+                                <FeatureItem isPro={false}>
+                                  <FeatureIcon>✗</FeatureIcon>
+                                  {MODEL_DESCRIPTIONS[option.id].cons[0]}
+                                </FeatureItem>
+                              </ModelFeatures>
+                            </ModelCard>
+                          ))}
+                        </div>
+                      </ModelSection>
                     </ModelOptions>
                   </ModelSelect>
 
@@ -1523,49 +1595,43 @@ const ImageGeneratepage = () => {
                 <>
                   <ModelSelect>
                     <ModelOptions>
-                      <div style={{ fontWeight: "bold", marginBottom: "10px", color: props => props.theme.textSecondary }}>Select Final Model</div>
-                      <div style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px"
-                      }}>
-                        {FINAL_MODEL_OPTIONS.map((option) => (
-                          <ModelOptionContainer key={option.id}>
-                            <ModelOption>
-                              <input
-                                type="radio"
-                                name="finalModel"
-                                value={option.id}
-                                checked={state.selectedFinalModel === option.id}
-                                onChange={(e) => handleFinalModelChange(e.target.value)}
-                                style={{ cursor: "pointer" }}
-                              />
-                              {option.label}
-                            </ModelOption>
-                            <ModelTooltip>
-                              <ModelDescription>{MODEL_DESCRIPTIONS[option.id].description}</ModelDescription>
-                              <ProsConsList>
-                                <ProsConsItem>
-                                  <ProsConsLabel isPro>Pros:</ProsConsLabel>
-                                  <div>
-                                    {MODEL_DESCRIPTIONS[option.id].pros.map((pro, index) => (
-                                      <div key={index}>• {pro}</div>
-                                    ))}
-                                  </div>
-                                </ProsConsItem>
-                                <ProsConsItem>
-                                  <ProsConsLabel isPro={false}>Cons:</ProsConsLabel>
-                                  <div>
-                                    {MODEL_DESCRIPTIONS[option.id].cons.map((con, index) => (
-                                      <div key={index}>• {con}</div>
-                                    ))}
-                                  </div>
-                                </ProsConsItem>
-                              </ProsConsList>
-                            </ModelTooltip>
-                          </ModelOptionContainer>
-                        ))}
-                      </div>
+                      <ModelSection>
+                        <SectionTitle>Select Final Model</SectionTitle>
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                          gap: "16px"
+                        }}>
+                          {FINAL_MODEL_OPTIONS.map((option) => (
+                            <ModelCard
+                              key={option.id}
+                              isSelected={state.selectedFinalModel === option.id}
+                              onClick={() => handleFinalModelChange(option.id)}
+                            >
+                              <ModelHeader>
+                                <ModelIcon>
+                                  {option.id.includes("Stable Diffusion") ? "🎨" :
+                                    option.id.includes("Disco") ? "💃" : "✨"}
+                                </ModelIcon>
+                                <ModelTitle>{option.label}</ModelTitle>
+                              </ModelHeader>
+                              <ModelDescription>
+                                {MODEL_DESCRIPTIONS[option.id].description}
+                              </ModelDescription>
+                              <ModelFeatures>
+                                <FeatureItem isPro>
+                                  <FeatureIcon>✓</FeatureIcon>
+                                  {MODEL_DESCRIPTIONS[option.id].pros[0]}
+                                </FeatureItem>
+                                <FeatureItem isPro={false}>
+                                  <FeatureIcon>✗</FeatureIcon>
+                                  {MODEL_DESCRIPTIONS[option.id].cons[0]}
+                                </FeatureItem>
+                              </ModelFeatures>
+                            </ModelCard>
+                          ))}
+                        </div>
+                      </ModelSection>
                     </ModelOptions>
                   </ModelSelect>
 
