@@ -342,21 +342,56 @@ const ImageGenerator = () => {
                 >
                   reset
                 </button>
-                <button
-                  onClick={handleFinalGeneration}
-                  disabled={loading}
-                  style={{
-                    padding: "8px 24px",
-                    backgroundColor: "#007bff",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  style transform
-                </button>
+                {!finalImage ? (
+                  <button
+                    onClick={handleFinalGeneration}
+                    disabled={loading}
+                    style={{
+                      padding: "8px 24px",
+                      backgroundColor: "#007bff",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      opacity: loading ? 0.6 : 1
+                    }}
+                  >
+                    style transform
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      // Base64 데이터를 Blob으로 변환
+                      const byteCharacters = atob(finalImage);
+                      const byteNumbers = new Array(byteCharacters.length);
+                      for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                      }
+                      const byteArray = new Uint8Array(byteNumbers);
+                      const blob = new Blob([byteArray], { type: 'image/png' });
+
+                      // Blob URL 생성 및 다운로드
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'transformed_image.png';
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
+                    }}
+                    style={{
+                      padding: "8px 24px",
+                      backgroundColor: "#28a745",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    download
+                  </button>
+                )}
               </div>
             )}
           </div>
