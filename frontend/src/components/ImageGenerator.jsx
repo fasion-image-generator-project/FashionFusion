@@ -1,5 +1,5 @@
 // src/components/ImageGenerator.jsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { generateInitialImage, generateFinalImage } from "../api";
 
 // 개발 모드 설정 (true: 더미 이미지 사용, false: 실제 API 호출)
@@ -123,10 +123,39 @@ const ImageGenerator = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedModel, setSelectedModel] = useState("cycle-gan-turbo");
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => {
+    // localStorage에서 히스토리 불러오기
+    const savedHistory = localStorage.getItem('imageGenerationHistory');
+    return savedHistory ? JSON.parse(savedHistory) : [];
+  });
   const [showSidebar, setShowSidebar] = useState(false);
   const imageSectionRef = useRef(null);
   const sidebarTimeoutRef = useRef(null);
+
+  // 히스토리가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    localStorage.setItem('imageGenerationHistory', JSON.stringify(history));
+  }, [history]);
+
+  // 히스토리 삭제 함수
+  const handleDeleteHistory = (id) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
+  };
+
+  // 히스토리 전체 삭제 함수
+  const handleClearHistory = () => {
+    if (window.confirm('모든 히스토리를 삭제하시겠습니까?')) {
+      setHistory([]);
+    }
+  };
+
+  // 히스토리 항목 복원 함수
+  const handleRestoreHistory = (item) => {
+    setPrompt(item.prompt);
+    setInitialImage(item.initialImage);
+    setFinalImage(item.finalImage);
+    setSelectedModel(item.model);
+  };
 
   const handleInitialGeneration = async () => {
     if (!prompt) return;
@@ -624,7 +653,30 @@ const ImageGenerator = () => {
           overflowY: "auto"
         }}
       >
-        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Generation History</h3>
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px"
+        }}>
+          <h3 style={{ margin: 0 }}>Generation History</h3>
+          {history.length > 0 && (
+            <button
+              onClick={handleClearHistory}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontSize: "0.8rem"
+              }}
+            >
+              Clear All
+            </button>
+          )}
+        </div>
         <div style={{
           display: "flex",
           flexDirection: "column",
@@ -641,8 +693,45 @@ const ImageGenerator = () => {
                 boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
               }}
             >
-              <div style={{ marginBottom: "10px", fontWeight: "bold" }}>
-                {item.prompt}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "10px"
+              }}>
+                <div style={{ fontWeight: "bold" }}>
+                  {item.prompt}
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => handleRestoreHistory(item)}
+                    style={{
+                      padding: "4px 8px",
+                      backgroundColor: "#28a745",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "0.8rem"
+                    }}
+                  >
+                    Restore
+                  </button>
+                  <button
+                    onClick={() => handleDeleteHistory(item.id)}
+                    style={{
+                      padding: "4px 8px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "0.8rem"
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <div style={{
                 display: "flex",
