@@ -92,7 +92,13 @@ const ImageGenerator = () => {
   };
 
   const handleRegenerate = () => {
-    handleInitialGeneration();
+    if (finalImage) {
+      // finalImage가 있으면 style transform을 다시 실행
+      handleFinalGeneration();
+    } else {
+      // finalImage가 없으면 initial 이미지를 다시 생성
+      handleInitialGeneration();
+    }
   };
 
   const handleReset = () => {
