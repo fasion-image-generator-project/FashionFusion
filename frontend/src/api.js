@@ -9,9 +9,12 @@ const API = axios.create({
     },
 });
 
-export const generateInitialImage = async (prompt) => {
+export const generateInitialImage = async (prompt, model) => {
     try {
-        const response = await API.post("/predict/initial", { text: prompt });
+        const response = await API.post("/predict/initial", { 
+            text: prompt,
+            model: model  // 선택된 모델 정보 추가
+        });
         return response.data.imageUrl;
     } catch (error) {
         throw new Error(error.response?.data?.detail || error.message);
