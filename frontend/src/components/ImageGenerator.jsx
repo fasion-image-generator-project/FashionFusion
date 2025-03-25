@@ -39,6 +39,83 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// 이미지 확대 컴포넌트
+const ImageMagnifier = ({ imageUrl, alt }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [showMagnifier, setShowMagnifier] = useState(false);
+  const imgRef = useRef(null);
+
+  const magnifierWidth = 200; // 돋보기 너비
+  const magnifierHeight = 150; // 돋보기 높이
+  const zoomLevel = 2.5; // 확대 배율
+
+  const handleMouseMove = (e) => {
+    const elem = imgRef.current;
+    const { top, left, width, height } = elem.getBoundingClientRect();
+
+    // 마우스 위치 계산 (이미지 내부 좌표)
+    const x = e.clientX - left;
+    const y = e.clientY - top;
+
+    setPosition({
+      x: Math.max(0, Math.min(x, width)),
+      y: Math.max(0, Math.min(y, height))
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "auto"
+      }}
+    >
+      <img
+        ref={imgRef}
+        src={imageUrl}
+        alt={alt}
+        style={{
+          width: "100%",
+          height: "auto",
+          borderRadius: "4px"
+        }}
+        onMouseEnter={() => setShowMagnifier(true)}
+        onMouseLeave={() => setShowMagnifier(false)}
+        onMouseMove={handleMouseMove}
+      />
+      {showMagnifier && (
+        <div
+          style={{
+            position: "absolute",
+            left: `${position.x - magnifierWidth / 2}px`,
+            top: `${position.y - magnifierHeight / 2}px`,
+            width: `${magnifierWidth}px`,
+            height: `${magnifierHeight}px`,
+            border: "2px solid #007bff",
+            borderRadius: "4px",
+            pointerEvents: "none",
+            overflow: "hidden",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+          }}
+        >
+          <img
+            src={imageUrl}
+            alt={alt}
+            style={{
+              position: "absolute",
+              left: `${-position.x * (zoomLevel - 1) - (magnifierWidth / 2)}px`,
+              top: `${-position.y * (zoomLevel - 1) - (magnifierHeight / 2)}px`,
+              width: `${imgRef.current?.width * zoomLevel}px`,
+              height: "auto"
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
   const [initialImage, setInitialImage] = useState("");
@@ -237,14 +314,9 @@ const ImageGenerator = () => {
                     <LoadingSpinner />
                   </div>
                 )}
-                <img
-                  src={`data:image/png;base64,${initialImage}`}
+                <ImageMagnifier
+                  imageUrl={`data:image/png;base64,${initialImage}`}
                   alt="Generated"
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    borderRadius: "4px"
-                  }}
                 />
               </div>
             )}
@@ -292,14 +364,9 @@ const ImageGenerator = () => {
                     <LoadingSpinner />
                   </div>
                 )}
-                <img
-                  src={`data:image/png;base64,${finalImage}`}
+                <ImageMagnifier
+                  imageUrl={`data:image/png;base64,${finalImage}`}
                   alt="Transformed"
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    borderRadius: "4px"
-                  }}
                 />
               </div>
             )}
