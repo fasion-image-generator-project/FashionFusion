@@ -37,21 +37,21 @@ const LoadingSpinner = styled.div`
   animation: spin 1s linear infinite;
 `;
 
-// 이미지 확대 컴포넌트
+// 이미지 확대 컴포넌트 수정
 const ImageMagnifier = ({ imageUrl, alt }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [showMagnifier, setShowMagnifier] = useState(false);
   const imgRef = useRef(null);
 
-  const magnifierWidth = 200; // 돋보기 너비
-  const magnifierHeight = 150; // 돋보기 높이
-  const zoomLevel = 2.5; // 확대 배율
+  const magnifierWidth = 200;
+  const magnifierHeight = 200;
+  const zoomLevel = 2.5;
 
   const handleMouseMove = (e) => {
     const elem = imgRef.current;
-    const { top, left, width, height } = elem.getBoundingClientRect();
+    if (!elem) return;
 
-    // 마우스 위치 계산 (이미지 내부 좌표)
+    const { top, left, width, height } = elem.getBoundingClientRect();
     const x = e.clientX - left;
     const y = e.clientY - top;
 
@@ -66,7 +66,10 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
       style={{
         position: "relative",
         width: "100%",
-        height: "auto"
+        height: "400px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center"
       }}
     >
       <img
@@ -74,8 +77,9 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
         src={imageUrl}
         alt={alt}
         style={{
-          width: "100%",
-          height: "auto",
+          maxWidth: "100%",
+          height: "400px",
+          objectFit: "contain",
           borderRadius: "4px"
         }}
         onMouseEnter={() => setShowMagnifier(true)}
@@ -94,7 +98,9 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
             borderRadius: "4px",
             pointerEvents: "none",
             overflow: "hidden",
-            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
+            backgroundColor: "white",
+            zIndex: 100,
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)"
           }}
         >
           <img
@@ -104,8 +110,9 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
               position: "absolute",
               left: `${-position.x * (zoomLevel - 1) - (magnifierWidth / 2)}px`,
               top: `${-position.y * (zoomLevel - 1) - (magnifierHeight / 2)}px`,
-              width: `${imgRef.current?.width * zoomLevel}px`,
-              height: "auto"
+              maxWidth: "none",
+              height: `${400 * zoomLevel}px`,
+              objectFit: "contain"
             }}
           />
         </div>
@@ -545,8 +552,8 @@ const ImageGenerator = () => {
                       <LoadingSpinner />
                     </LoadingOverlay>
                   )}
-                  <StyledImage
-                    src={initialImage}
+                  <ImageMagnifier
+                    imageUrl={initialImage}
                     alt="Initial"
                   />
                 </ImageContainer>
@@ -565,8 +572,8 @@ const ImageGenerator = () => {
                       <LoadingSpinner />
                     </LoadingOverlay>
                   )}
-                  <StyledImage
-                    src={finalImage}
+                  <ImageMagnifier
+                    imageUrl={finalImage}
                     alt="Transformed"
                   />
                 </ImageContainer>
