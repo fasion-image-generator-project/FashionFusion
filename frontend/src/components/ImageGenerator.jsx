@@ -11,7 +11,7 @@
 
 // src/components/ImageGenerator.jsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import styled, { createGlobalStyle, keyframes } from "styled-components";
+import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-components";
 import { generateInitialImage, generateFinalImage } from "../api";
 
 // 개발 및 테스트를 위한 상수 정의
@@ -40,6 +40,37 @@ const MODEL_OPTIONS = [
   { id: "style-gan", name: "Style GAN", label: "Style GAN" }
 ];
 
+// 테마 정의
+const lightTheme = {
+  primary: '#007bff',
+  success: '#28a745',
+  danger: '#dc3545',
+  background: '#f5f5f5',
+  surface: '#ffffff',
+  text: '#000000',
+  textSecondary: '#666666',
+  border: '#dddddd',
+  shadow: 'rgba(0, 0, 0, 0.1)',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  spinnerBorder: '#f3f3f3',
+  spinnerActive: '#3498db'
+};
+
+const darkTheme = {
+  primary: '#0d6efd',
+  success: '#198754',
+  danger: '#dc3545',
+  background: '#121212',
+  surface: '#1e1e1e',
+  text: '#ffffff',
+  textSecondary: '#a0a0a0',
+  border: '#333333',
+  shadow: 'rgba(0, 0, 0, 0.3)',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  spinnerBorder: '#333333',
+  spinnerActive: '#0d6efd'
+};
+
 /**
  * 로딩 스피너 컴포넌트
  * 이미지 생성/변환 중 로딩 상태를 표시
@@ -47,8 +78,8 @@ const MODEL_OPTIONS = [
 const LoadingSpinner = styled.div`
   width: 50px;
   height: 50px;
-  border: 5px solid #f3f3f3;
-  border-top: 5px solid #3498db;
+  border: 5px solid ${props => props.theme.spinnerBorder};
+  border-top: 5px solid ${props => props.theme.spinnerActive};
   border-radius: 50%;
   animation: spin 1s linear infinite;
 `;
@@ -145,6 +176,15 @@ const ImageMagnifier = ({ imageUrl, alt }) => {
  * 애니메이션 키프레임과 전역적으로 적용될 스타일 설정
  */
 const GlobalStyle = createGlobalStyle`
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: ${props => props.theme.background};
+    color: ${props => props.theme.text};
+    transition: all 0.3s ease;
+  }
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -165,11 +205,12 @@ const Container = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f5f5f5;
+  background-color: ${props => props.theme.background};
   margin: 0;
   padding: 0;
   position: relative;
   overflow: hidden;
+  color: ${props => props.theme.text};
 `;
 
 const MainContent = styled.div`
@@ -184,10 +225,10 @@ const MainContent = styled.div`
 
 const PromptDisplay = styled.div`
   width: 100%;
-  background-color: white;
+  background-color: ${props => props.theme.surface};
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 `;
 
 const ContentArea = styled.div`
@@ -198,10 +239,10 @@ const ContentArea = styled.div`
 
 const ImageControlArea = styled.div`
   flex: 1;
-  background-color: white;
+  background-color: ${props => props.theme.surface};
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 `;
 
 const Form = styled.form.attrs(props => ({
@@ -220,8 +261,14 @@ const Input = styled.input.attrs(props => ({
   flex: 1;
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #ddd;
+  border: 1px solid ${props => props.theme.border};
   font-size: 1rem;
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+
+  &::placeholder {
+    color: ${props => props.theme.textSecondary};
+  }
 `;
 
 const Button = styled.button.attrs(props => ({
@@ -230,9 +277,9 @@ const Button = styled.button.attrs(props => ({
 }))`
   padding: 12px 24px;
   background-color: ${props => {
-    if (props.variant === 'success') return '#28a745';
-    if (props.variant === 'danger') return '#dc3545';
-    return '#007bff';
+    if (props.variant === 'success') return props.theme.success;
+    if (props.variant === 'danger') return props.theme.danger;
+    return props.theme.primary;
   }};
   color: white;
   border: none;
@@ -241,6 +288,11 @@ const Button = styled.button.attrs(props => ({
   opacity: ${props => props.disabled ? 0.6 : 1};
   font-size: 1rem;
   white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
 `;
 
 const ImageContainer = styled.div`
@@ -285,10 +337,10 @@ const ButtonGroup = styled.div`
 `;
 
 const ModelSelect = styled.div`
-  background-color: white;
+  background-color: ${props => props.theme.surface};
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
   width: 160px;
   height: fit-content;
 `;
@@ -301,9 +353,10 @@ const ModelOptions = styled.div`
 
 const ErrorMessage = styled.div`
   padding: 20px;
-  background-color: #ffebee;
+  background-color: ${props => props.theme.danger}15;
   border-radius: 6px;
-  color: #d32f2f;
+  color: ${props => props.theme.danger};
+  border: 1px solid ${props => props.theme.danger}30;
 `;
 
 const HistoryButton = styled.div`
@@ -328,14 +381,15 @@ const Sidebar = styled.div`
   right: 0;
   top: 0;
   width: 300px;
-  background-color: white;
+  background-color: ${props => props.theme.surface};
   height: 100vh;
-  box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 5px ${props => props.theme.shadow};
   transform: ${props => props.show ? "translateX(0)" : "translateX(100%)"};
   transition: transform 0.3s ease-in-out;
   z-index: 999;
   padding: 20px;
   overflow-y: auto;
+  color: ${props => props.theme.text};
 `;
 
 const SidebarHeader = styled.div`
@@ -353,10 +407,10 @@ const HistoryList = styled.div`
 
 const HistoryItem = styled.div`
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid ${props => props.theme.border};
   border-radius: 8px;
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background-color: ${props => props.theme.surface};
+  box-shadow: 0 1px 3px ${props => props.theme.shadow};
 `;
 
 const HistoryItemHeader = styled.div`
@@ -380,7 +434,7 @@ const HistoryImage = styled.img`
 
 const HistoryFooter = styled.div`
   font-size: 0.9em;
-  color: #666;
+  color: ${props => props.theme.textSecondary};
   display: flex;
   justify-content: space-between;
 `;
@@ -472,6 +526,31 @@ const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
   </ModelSelect>
 ));
 
+const ThemeToggle = styled.button`
+  position: fixed;
+  left: 20px;
+  top: 20px;
+  padding: 10px;
+  border-radius: 50%;
+  background-color: ${props => props.theme.surface};
+  border: 1px solid ${props => props.theme.border};
+  color: ${props => props.theme.text};
+  cursor: pointer;
+  z-index: 1000;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    background-color: ${props => props.theme.background};
+  }
+`;
+
 /**
  * 메인 ImageGenerator 컴포넌트
  * 전체 애플리케이션의 상태와 로직을 관리
@@ -510,6 +589,17 @@ const ImageGenerator = () => {
     Boolean(state.initialImage),
     [state.initialImage]
   );
+
+  // 다크모드 상태 관리
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  // 다크모드 변경 시 localStorage 저장
+  useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   // 효과
   useEffect(() => {
@@ -726,9 +816,15 @@ const ImageGenerator = () => {
   ), [history, handleRestoreHistory, handleDeleteHistory]);
 
   return (
-    <>
+    <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <GlobalStyle />
       <Container>
+        <ThemeToggle
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDarkMode ? '🌞' : '🌙'}
+        </ThemeToggle>
         <MainContent>
           {renderPromptDisplay}
           <ContentArea>
@@ -944,7 +1040,7 @@ const ImageGenerator = () => {
           </HistoryList>
         </Sidebar>
       </Container>
-    </>
+    </ThemeProvider>
   );
 };
 
