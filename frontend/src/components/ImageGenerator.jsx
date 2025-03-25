@@ -157,6 +157,45 @@ const ImageGenerator = () => {
     setSelectedModel(item.model);
   };
 
+  // 히스토리 내보내기 함수
+  const handleExportHistory = () => {
+    const historyData = JSON.stringify(history, null, 2);
+    const blob = new Blob([historyData], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fashion-fusion-history-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  // 히스토리 가져오기 함수
+  const handleImportHistory = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedHistory = JSON.parse(e.target.result);
+          if (Array.isArray(importedHistory)) {
+            if (window.confirm('기존 히스토리에 추가하시겠습니까? "취소"를 선택하면 기존 히스토리를 대체합니다.')) {
+              setHistory(prev => [...prev, ...importedHistory]);
+            } else {
+              setHistory(importedHistory);
+            }
+          }
+        } catch (err) {
+          alert('잘못된 형식의 파일입니다.');
+        }
+      };
+      reader.readAsText(file);
+    }
+    // 파일 입력값 초기화
+    event.target.value = '';
+  };
+
   const handleInitialGeneration = async () => {
     if (!prompt) return;
     setLoading(true);
@@ -660,12 +699,51 @@ const ImageGenerator = () => {
           marginBottom: "20px"
         }}>
           <h3 style={{ margin: 0 }}>Generation History</h3>
-          {history.length > 0 && (
+          <div style={{ display: "flex", gap: "8px" }}>
+            {history.length > 0 && (
+              <>
+                <button
+                  onClick={handleExportHistory}
+                  style={{
+                    padding: "4px 8px",
+                    backgroundColor: "#28a745",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "0.8rem"
+                  }}
+                >
+                  Export
+                </button>
+                <button
+                  onClick={handleClearHistory}
+                  style={{
+                    padding: "4px 8px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "0.8rem"
+                  }}
+                >
+                  Clear All
+                </button>
+              </>
+            )}
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportHistory}
+              style={{ display: "none" }}
+              id="history-import"
+            />
             <button
-              onClick={handleClearHistory}
+              onClick={() => document.getElementById('history-import').click()}
               style={{
                 padding: "4px 8px",
-                backgroundColor: "#dc3545",
+                backgroundColor: "#007bff",
                 color: "white",
                 border: "none",
                 borderRadius: "4px",
@@ -673,9 +751,9 @@ const ImageGenerator = () => {
                 fontSize: "0.8rem"
               }}
             >
-              Clear All
+              Import
             </button>
-          )}
+          </div>
         </div>
         <div style={{
           display: "flex",
