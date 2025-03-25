@@ -123,7 +123,10 @@ const ImageGenerator = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedModel, setSelectedModel] = useState("cycle-gan-turbo");
+  const [history, setHistory] = useState([]);
+  const [showSidebar, setShowSidebar] = useState(false);
   const imageSectionRef = useRef(null);
+  const sidebarTimeoutRef = useRef(null);
 
   const handleInitialGeneration = async () => {
     if (!prompt) return;
@@ -131,11 +134,9 @@ const ImageGenerator = () => {
     setError("");
     try {
       if (USE_DUMMY_DATA) {
-        // 개발 모드에서는 더미 이미지 사용
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 로딩 시뮬레이션
-        setInitialImage(DUMMY_INITIAL_IMAGE.split(',')[1]); // base64 데이터 부분만 추출
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setInitialImage(DUMMY_INITIAL_IMAGE.split(',')[1]);
       } else {
-        // 프로덕션 모드에서는 실제 API 호출
         const imageData = await generateInitialImage(prompt);
         setInitialImage(imageData);
       }
@@ -153,13 +154,34 @@ const ImageGenerator = () => {
     setError("");
     try {
       if (USE_DUMMY_DATA) {
-        // 개발 모드에서는 더미 이미지 사용
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 로딩 시뮬레이션
-        setFinalImage(DUMMY_FINAL_IMAGE.split(',')[1]); // base64 데이터 부분만 추출
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const finalImageData = DUMMY_FINAL_IMAGE.split(',')[1];
+        setFinalImage(finalImageData);
+
+        // 히스토리에 추가
+        const newHistoryItem = {
+          id: Date.now(),
+          prompt,
+          initialImage,
+          finalImage: finalImageData,
+          model: selectedModel,
+          timestamp: new Date().toLocaleString()
+        };
+        setHistory(prev => [newHistoryItem, ...prev]);
       } else {
-        // 프로덕션 모드에서는 실제 API 호출
         const imageData = await generateFinalImage(initialImage, selectedModel);
         setFinalImage(imageData);
+
+        // 히스토리에 추가
+        const newHistoryItem = {
+          id: Date.now(),
+          prompt,
+          initialImage,
+          finalImage: imageData,
+          model: selectedModel,
+          timestamp: new Date().toLocaleString()
+        };
+        setHistory(prev => [newHistoryItem, ...prev]);
       }
     } catch (err) {
       setError(err.message);
@@ -194,13 +216,23 @@ const ImageGenerator = () => {
       alignItems: "center",
       backgroundColor: "#f5f5f5",
       margin: 0,
-      padding: 0
+      padding: 0,
+      position: "relative",
+      overflow: "hidden"
     }}>
       <style>
         {`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+          }
+          @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+          @keyframes slideOut {
+            from { transform: translateX(0); }
+            to { transform: translateX(100%); }
           }
         `}
       </style>
@@ -522,6 +554,141 @@ const ImageGenerator = () => {
             <p>{error}</p>
           </div>
         )}
+      </div>
+
+      {/* 히스토리 버튼 */}
+      <div
+        style={{
+          position: "fixed",
+          right: showSidebar ? "320px" : "20px",
+          top: "20px",
+          zIndex: 1000,
+          transition: "right 0.3s ease-in-out"
+        }}
+      >
+        <button
+          onClick={() => setShowSidebar(!showSidebar)}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <span>{showSidebar ? "Hide History" : "Show History"}</span>
+        </button>
+      </div>
+
+      {/* 히스토리 사이드바 트리거 영역 */}
+      <div
+        onMouseEnter={() => {
+          if (sidebarTimeoutRef.current) {
+            clearTimeout(sidebarTimeoutRef.current);
+          }
+          setShowSidebar(true);
+        }}
+        style={{
+          position: "fixed",
+          right: 0,
+          top: 0,
+          width: "20px",
+          height: "100vh",
+          zIndex: 998
+        }}
+      />
+
+      {/* 히스토리 사이드바 */}
+      <div
+        onMouseLeave={() => {
+          sidebarTimeoutRef.current = setTimeout(() => {
+            setShowSidebar(false);
+          }, 300);
+        }}
+        style={{
+          position: "fixed",
+          right: 0,
+          top: 0,
+          width: "300px",
+          backgroundColor: "white",
+          height: "100vh",
+          boxShadow: "-2px 0 5px rgba(0,0,0,0.1)",
+          transform: showSidebar ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.3s ease-in-out",
+          zIndex: 999,
+          padding: "20px",
+          overflowY: "auto"
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Generation History</h3>
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "20px"
+        }}>
+          {history.map(item => (
+            <div
+              key={item.id}
+              style={{
+                padding: "15px",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                backgroundColor: "#fff",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+              }}
+            >
+              <div style={{ marginBottom: "10px", fontWeight: "bold" }}>
+                {item.prompt}
+              </div>
+              <div style={{
+                display: "flex",
+                gap: "10px",
+                marginBottom: "10px"
+              }}>
+                <img
+                  src={`data:image/png;base64,${item.initialImage}`}
+                  alt="Initial"
+                  style={{
+                    width: "50%",
+                    height: "auto",
+                    borderRadius: "4px"
+                  }}
+                />
+                <img
+                  src={`data:image/png;base64,${item.finalImage}`}
+                  alt="Final"
+                  style={{
+                    width: "50%",
+                    height: "auto",
+                    borderRadius: "4px"
+                  }}
+                />
+              </div>
+              <div style={{
+                fontSize: "0.9em",
+                color: "#666",
+                display: "flex",
+                justifyContent: "space-between"
+              }}>
+                <span>{item.model}</span>
+                <span>{item.timestamp}</span>
+              </div>
+            </div>
+          ))}
+          {history.length === 0 && (
+            <div style={{
+              textAlign: "center",
+              color: "#666",
+              padding: "20px"
+            }}>
+              No history yet
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
