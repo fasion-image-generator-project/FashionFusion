@@ -1,24 +1,87 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import styled from 'styled-components';
-import LoadingSpinner from '../common/LoadingSpinner';
+import ImageMagnifier from '../common/ImageMagnifier';
 
-const ImageContainer = styled.div`
-  border: 1px solid ${props => props.theme.border};
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  position: relative;
-  min-height: 200px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+const ImageDisplayContainer = styled.div`
   background-color: ${props => props.theme.surface};
-  box-shadow: 0 2px 8px ${props => props.theme.shadow};
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid ${props => props.theme.border};
+`;
+
+const Title = styled.h3`
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: ${props => props.theme.text};
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+`;
+
+const ImageGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+`;
+
+const ImageCard = styled.div`
+  position: relative;
+  background: ${props => props.theme.background};
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px ${props => props.theme.shadow};
   transition: all 0.3s ease;
 
   &:hover {
-    box-shadow: 0 4px 12px ${props => props.theme.shadow};
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px ${props => props.theme.shadow};
   }
+`;
+
+const ImageWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  background: ${props => props.theme.background};
+  overflow: hidden;
+`;
+
+const StyledImage = styled.img`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+`;
+
+const ImageInfo = styled.div`
+  padding: 16px;
+  background: ${props => props.theme.surface};
+`;
+
+const ImageTitle = styled.h4`
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: ${props => props.theme.text};
+  font-weight: 600;
+`;
+
+const ImageMeta = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: ${props => props.theme.textSecondary};
+  font-size: 14px;
+`;
+
+const MetaItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const LoadingOverlay = styled.div`
@@ -27,133 +90,101 @@ const LoadingOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: ${props => props.theme.overlay};
+  background: ${props => props.theme.background};
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 10;
-  border-radius: 12px;
+  justify-content: center;
+  opacity: 0.8;
   backdrop-filter: blur(4px);
 `;
 
-const ImageWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  height: 400px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
+const LoadingSpinner = styled.div`
+  width: 40px;
+  height: 40px;
+  border: 3px solid ${props => props.theme.border};
+  border-top-color: ${props => props.theme.primary};
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
-const StyledImage = styled.img`
-  max-width: 100%;
-  height: 400px;
-  object-fit: contain;
-  border-radius: 8px;
-  transition: transform 0.3s ease;
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 48px 24px;
+  color: ${props => props.theme.textSecondary};
 `;
 
-const MagnifierLens = styled.div`
-  position: absolute;
-  width: 200px;
-  height: 200px;
-  border: 2px solid ${props => props.theme.primary};
-  border-radius: 8px;
-  pointer-events: none;
-  overflow: hidden;
-  background-color: white;
-  z-index: 100;
-  box-shadow: 0 4px 12px ${props => props.theme.shadow};
-  opacity: ${props => props.show ? 1 : 0};
-  transition: opacity 0.2s ease;
+const EmptyStateIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: ${props => props.theme.border};
 `;
 
-const MagnifiedImage = styled.img`
-  position: absolute;
-  max-width: none;
-  object-fit: contain;
+const EmptyStateText = styled.p`
+  margin: 0;
+  font-size: 16px;
 `;
 
-const ImageDisplay = ({ imageUrl, alt, loading }) => {
-    const [showMagnifier, setShowMagnifier] = useState(false);
-    const [magnifierPosition, setMagnifierPosition] = useState({ x: 0, y: 0 });
-    const imgRef = useRef(null);
-
-    const handleMouseMove = (e) => {
-        if (!imgRef.current) return;
-
-        const { top, left, width, height } = imgRef.current.getBoundingClientRect();
-        const x = e.clientX - left;
-        const y = e.clientY - top;
-
-        if (x < 0 || x > width || y < 0 || y > height) {
-            setShowMagnifier(false);
-            return;
-        }
-
-        setMagnifierPosition({
-            x: Math.max(0, Math.min(x, width)),
-            y: Math.max(0, Math.min(y, height))
-        });
-    };
-
-    const handleMouseEnter = () => setShowMagnifier(true);
-    const handleMouseLeave = () => setShowMagnifier(false);
-
-    if (!imageUrl && !loading) {
+const ImageDisplay = ({
+    images,
+    loading,
+    selectedImage,
+    onImageClick,
+    onImageDelete
+}) => {
+    if (!images.length) {
         return (
-            <ImageContainer>
-                <div style={{
-                    color: props => props.theme.textSecondary,
-                    textAlign: 'center'
-                }}>
-                    No image generated yet
-                </div>
-            </ImageContainer>
+            <ImageDisplayContainer>
+                <Title>생성된 이미지</Title>
+                <EmptyState>
+                    <EmptyStateIcon>🎨</EmptyStateIcon>
+                    <EmptyStateText>아직 생성된 이미지가 없습니다.</EmptyStateText>
+                </EmptyState>
+            </ImageDisplayContainer>
         );
     }
 
     return (
-        <ImageContainer>
-            {loading && (
-                <LoadingOverlay>
-                    <LoadingSpinner />
-                </LoadingOverlay>
-            )}
-            {imageUrl && (
-                <ImageWrapper
-                    onMouseMove={handleMouseMove}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                >
-                    <StyledImage
-                        ref={imgRef}
-                        src={imageUrl}
-                        alt={alt}
-                        loading="lazy"
-                    />
-                    <MagnifierLens
-                        show={showMagnifier}
-                        style={{
-                            left: `${magnifierPosition.x - 100}px`,
-                            top: `${magnifierPosition.y - 100}px`
-                        }}
-                    >
-                        <MagnifiedImage
-                            src={imageUrl}
-                            alt={alt}
-                            style={{
-                                height: '1000px',
-                                left: `${-magnifierPosition.x * 2.5 + 100}px`,
-                                top: `${-magnifierPosition.y * 2.5 + 100}px`
-                            }}
-                        />
-                    </MagnifierLens>
-                </ImageWrapper>
-            )}
-        </ImageContainer>
+        <ImageDisplayContainer>
+            <Title>생성된 이미지</Title>
+            <ImageGrid>
+                {images.map((image) => (
+                    <ImageCard key={image.id}>
+                        <ImageWrapper>
+                            <StyledImage
+                                src={image.url}
+                                alt={image.prompt}
+                                onClick={() => onImageClick(image)}
+                            />
+                            {loading && image.id === selectedImage?.id && (
+                                <LoadingOverlay>
+                                    <LoadingSpinner />
+                                </LoadingOverlay>
+                            )}
+                        </ImageWrapper>
+                        <ImageInfo>
+                            <ImageTitle>{image.prompt}</ImageTitle>
+                            <ImageMeta>
+                                <MetaItem>
+                                    <span>모델:</span>
+                                    <span>{image.model}</span>
+                                </MetaItem>
+                                <MetaItem>
+                                    <span>생성일:</span>
+                                    <span>{new Date(image.createdAt).toLocaleDateString()}</span>
+                                </MetaItem>
+                            </ImageMeta>
+                        </ImageInfo>
+                    </ImageCard>
+                ))}
+            </ImageGrid>
+        </ImageDisplayContainer>
     );
 };
 
-export default React.memo(ImageDisplay); 
+export default ImageDisplay; 

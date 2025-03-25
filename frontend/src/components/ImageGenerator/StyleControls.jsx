@@ -1,217 +1,227 @@
 import React from 'react';
 import styled from 'styled-components';
-import { STYLE_GAN_PRESETS, PARAMETER_DESCRIPTIONS } from '../../constants/presets';
-import Tooltip from '../common/Tooltip';
+import { DEFAULT_STYLE_GAN_PARAMS } from '../../constants/styleGan';
 
-const ControlsContainer = styled.div`
-  margin-top: 15px;
-  padding: 20px;
+const StyleControlsContainer = styled.div`
   background-color: ${props => props.theme.surface};
+  padding: 24px;
+  border-radius: 16px;
   border: 1px solid ${props => props.theme.border};
-  border-radius: 12px;
 `;
 
-const PresetContainer = styled.div`
+const Title = styled.h3`
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: ${props => props.theme.text};
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
 `;
 
-const PresetButton = styled.button`
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid ${props => props.active ? props.theme.primary : props.theme.border};
-  background-color: ${props => props.active ? `${props.theme.primary}20` : props.theme.surface};
-  color: ${props => props.active ? props.theme.primary : props.theme.text};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  font-weight: ${props => props.active ? 'bold' : 'normal'};
+const ControlGroup = styled.div`
+  margin-bottom: 24px;
 
-  &:hover {
-    background-color: ${props => props.theme.primary}20;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px ${props => props.theme.shadow};
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-`;
-
-const SavePresetButton = styled(PresetButton)`
-  background-color: ${props => props.theme.success};
-  color: white;
-  border-color: ${props => props.theme.success};
-  font-weight: bold;
-
-  &:hover {
-    background-color: ${props => props.theme.success};
-    filter: brightness(1.1);
-  }
-`;
-
-const SliderContainer = styled.div`
-  margin-bottom: 20px;
-  
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const SliderHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const ControlLabel = styled.label`
+  display: block;
   margin-bottom: 8px;
+  color: ${props => props.theme.text};
+  font-weight: 500;
 `;
 
-const SliderLabel = styled.label`
-  font-size: 0.9rem;
-  color: ${props => props.theme.textSecondary};
+const SliderContainer = styled.div`
   display: flex;
   align-items: center;
+  gap: 12px;
 `;
 
-const SliderValue = styled.span`
-  font-size: 0.9rem;
-  color: ${props => props.theme.primary};
-  font-weight: bold;
-`;
-
-const StyledSlider = styled.input.attrs({ type: 'range' })`
-  width: 100%;
+const Slider = styled.input`
+  flex: 1;
   height: 4px;
-  border-radius: 2px;
-  background: ${props => props.theme.border};
-  outline: none;
-  opacity: 0.7;
-  transition: opacity 0.2s;
   -webkit-appearance: none;
-
-  &:hover {
-    opacity: 1;
-  }
+  background: ${props => props.theme.border};
+  border-radius: 2px;
+  outline: none;
 
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 16px;
     height: 16px;
-    border-radius: 50%;
     background: ${props => props.theme.primary};
+    border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 
     &:hover {
-      transform: scale(1.2);
+      transform: scale(1.1);
     }
   }
 
   &::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    border-radius: 50%;
     background: ${props => props.theme.primary};
+    border: none;
+    border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 
     &:hover {
-      transform: scale(1.2);
+      transform: scale(1.1);
     }
+  }
+`;
+
+const ValueDisplay = styled.div`
+  min-width: 40px;
+  text-align: right;
+  color: ${props => props.theme.textSecondary};
+  font-size: 14px;
+`;
+
+const PresetSection = styled.div`
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid ${props => props.theme.border};
+`;
+
+const PresetTitle = styled.h4`
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: ${props => props.theme.text};
+  font-weight: 600;
+`;
+
+const PresetGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+`;
+
+const PresetButton = styled.button`
+  padding: 8px 12px;
+  border: 1px solid ${props => props.isActive ? props.theme.primary : props.theme.border};
+  border-radius: 8px;
+  background: ${props => props.isActive ? `${props.theme.primary}10` : props.theme.surface};
+  color: ${props => props.isActive ? props.theme.primary : props.theme.text};
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${props => props.theme.primary};
+    background: ${props => props.theme.primary}10;
+  }
+`;
+
+const SavePresetButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed ${props => props.theme.border};
+  border-radius: 8px;
+  background: transparent;
+  color: ${props => props.theme.textSecondary};
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+
+  &:hover {
+    border-color: ${props => props.theme.primary};
+    color: ${props => props.theme.primary};
   }
 `;
 
 const StyleControls = ({
     params,
     onParamChange,
-    customPresets = {},
+    customPresets,
     activePreset,
     onPresetClick,
     onSavePreset
 }) => {
     return (
-        <ControlsContainer>
-            <PresetContainer>
-                {Object.entries(STYLE_GAN_PRESETS).map(([name, values]) => (
-                    <PresetButton
-                        key={name}
-                        active={activePreset === name}
-                        onClick={() => onPresetClick(name, values)}
-                        title={values.description}
-                    >
-                        {name}
-                    </PresetButton>
-                ))}
-                {Object.entries(customPresets).map(([name, values]) => (
-                    <PresetButton
-                        key={name}
-                        active={activePreset === name}
-                        onClick={() => onPresetClick(name, values)}
-                    >
-                        {name}
-                    </PresetButton>
-                ))}
+        <StyleControlsContainer>
+            <Title>스타일 조정</Title>
+
+            <ControlGroup>
+                <ControlLabel>스타일 강도</ControlLabel>
+                <SliderContainer>
+                    <Slider
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={params.styleStrength}
+                        onChange={(e) => onParamChange('styleStrength', parseFloat(e.target.value))}
+                    />
+                    <ValueDisplay>{(params.styleStrength * 100).toFixed(0)}%</ValueDisplay>
+                </SliderContainer>
+            </ControlGroup>
+
+            <ControlGroup>
+                <ControlLabel>색상 보존</ControlLabel>
+                <SliderContainer>
+                    <Slider
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={params.colorPreservation}
+                        onChange={(e) => onParamChange('colorPreservation', parseFloat(e.target.value))}
+                    />
+                    <ValueDisplay>{(params.colorPreservation * 100).toFixed(0)}%</ValueDisplay>
+                </SliderContainer>
+            </ControlGroup>
+
+            <ControlGroup>
+                <ControlLabel>구조 보존</ControlLabel>
+                <SliderContainer>
+                    <Slider
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={params.structurePreservation}
+                        onChange={(e) => onParamChange('structurePreservation', parseFloat(e.target.value))}
+                    />
+                    <ValueDisplay>{(params.structurePreservation * 100).toFixed(0)}%</ValueDisplay>
+                </SliderContainer>
+            </ControlGroup>
+
+            <PresetSection>
+                <PresetTitle>프리셋</PresetTitle>
+                <PresetGrid>
+                    {Object.entries(DEFAULT_STYLE_GAN_PARAMS).map(([name, preset]) => (
+                        <PresetButton
+                            key={name}
+                            isActive={activePreset === name}
+                            onClick={() => onPresetClick(name)}
+                        >
+                            {name}
+                        </PresetButton>
+                    ))}
+                    {Object.entries(customPresets).map(([name, preset]) => (
+                        <PresetButton
+                            key={name}
+                            isActive={activePreset === name}
+                            onClick={() => onPresetClick(name)}
+                        >
+                            {name}
+                        </PresetButton>
+                    ))}
+                </PresetGrid>
                 <SavePresetButton onClick={onSavePreset}>
-                    Save Current
+                    현재 설정 저장
                 </SavePresetButton>
-            </PresetContainer>
-
-            <SliderContainer>
-                <SliderHeader>
-                    <SliderLabel>
-                        Truncation (Style Variation)
-                        <Tooltip text={PARAMETER_DESCRIPTIONS.truncation} />
-                    </SliderLabel>
-                    <SliderValue>{params.truncation.toFixed(2)}</SliderValue>
-                </SliderHeader>
-                <StyledSlider
-                    min="0.1"
-                    max="1.0"
-                    step="0.01"
-                    value={params.truncation}
-                    onChange={(e) => onParamChange('truncation', parseFloat(e.target.value))}
-                    aria-label="Style variation control"
-                />
-            </SliderContainer>
-
-            <SliderContainer>
-                <SliderHeader>
-                    <SliderLabel>
-                        Noise (Detail Level)
-                        <Tooltip text={PARAMETER_DESCRIPTIONS.noise} />
-                    </SliderLabel>
-                    <SliderValue>{params.noise.toFixed(2)}</SliderValue>
-                </SliderHeader>
-                <StyledSlider
-                    min="0.0"
-                    max="1.0"
-                    step="0.01"
-                    value={params.noise}
-                    onChange={(e) => onParamChange('noise', parseFloat(e.target.value))}
-                    aria-label="Noise level control"
-                />
-            </SliderContainer>
-
-            <SliderContainer>
-                <SliderHeader>
-                    <SliderLabel>
-                        Strength (Transform Intensity)
-                        <Tooltip text={PARAMETER_DESCRIPTIONS.strength} />
-                    </SliderLabel>
-                    <SliderValue>{params.strength.toFixed(2)}</SliderValue>
-                </SliderHeader>
-                <StyledSlider
-                    min="0.1"
-                    max="1.0"
-                    step="0.01"
-                    value={params.strength}
-                    onChange={(e) => onParamChange('strength', parseFloat(e.target.value))}
-                    aria-label="Transform strength control"
-                />
-            </SliderContainer>
-        </ControlsContainer>
+            </PresetSection>
+        </StyleControlsContainer>
     );
 };
 
-export default React.memo(StyleControls); 
+export default StyleControls; 
