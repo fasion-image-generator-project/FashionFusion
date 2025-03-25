@@ -1,5 +1,5 @@
 /**
- * ImageGenerator Component
+ * ImageGeneratepage Component
  * 
  * 텍스트 프롬프트를 기반으로 이미지를 생성하고 변환하는 메인 컴포넌트입니다.
  * 주요 기능:
@@ -9,7 +9,7 @@
  * - 히스토리 관리 (저장, 불러오기, 내보내기)
  */
 
-// src/components/ImageGenerator.jsx
+// src/components/ImageGeneratepage.jsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-components";
 import { generateInitialImage, generateFinalImage } from "../api";
@@ -819,11 +819,116 @@ const PARAMETER_DESCRIPTIONS = {
   strength: "변환의 강도를 조절합니다. 높은 값은 원본 이미지를 크게 변형하고, 낮은 값은 미묘한 변화만을 적용합니다."
 };
 
+const PromptInputContainer = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+const PromptInputWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  margin-bottom: 8px;
+`;
+
+const PromptInput = styled(Input)`
+  padding: 16px;
+  font-size: 1.1rem;
+  border: 2px solid ${props => props.hasError ? props.theme.danger : props.theme.border};
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background-color: ${props => props.theme.surface};
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  line-height: 1.5;
+  width: 94%;
+
+  &:focus {
+    border-color: ${props => props.theme.primary};
+    box-shadow: 0 0 0 3px ${props => props.theme.primary}20;
+    outline: none;
+  }
+
+  &::placeholder {
+    color: ${props => props.theme.textSecondary};
+    opacity: 0.7;
+  }
+`;
+
+const PromptLabel = styled.label`
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: ${props => props.theme.text};
+  font-size: 1.1rem;
+`;
+
+const PromptHint = styled.div`
+  font-size: 0.9rem;
+  color: ${props => props.theme.textSecondary};
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const PromptExamples = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+`;
+
+const ExampleButton = styled.button`
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid ${props => props.theme.border};
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: ${props => props.theme.primary};
+    color: white;
+    border-color: ${props => props.theme.primary};
+  }
+`;
+
+const PromptCounter = styled.div`
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font-size: 0.8rem;
+  color: ${props => {
+    if (props.count > props.maxLength) return props.theme.danger;
+    if (props.count > props.maxLength * 0.8) return props.theme.warning || '#ffa500';
+    return props.theme.textSecondary;
+  }};
+`;
+
+const PromptError = styled.div`
+  color: ${props => props.theme.danger};
+  font-size: 0.9rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+// 프롬프트 예시 목록
+const PROMPT_EXAMPLES = [
+  "yellow T-shirt with blue stripes",
+  "red leather jacket with silver zippers",
+  "black denim jeans with ripped knees",
+  "white cotton dress with floral pattern",
+  "navy blue suit with gold buttons"
+];
+
 /**
- * 메인 ImageGenerator 컴포넌트
+ * 메인 ImageGeneratepage 컴포넌트
  * 전체 애플리케이션의 상태와 로직을 관리
  */
-const ImageGenerator = () => {
+const ImageGeneratepage = () => {
   // 상태 관리
   const [styleGanParams, setStyleGanParams] = useState({
     truncation: 0.7,    // 기본값 0.7, 범위: 0.1 ~ 1.0
@@ -1231,20 +1336,51 @@ const ImageGenerator = () => {
                     }}
                     aria-label="Image generation form"
                   >
-                    <Input
-                      type="text"
-                      value={state.prompt}
-                      onChange={(e) => setState(prev => ({ ...prev, prompt: e.target.value }))}
-                      placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
-                      disabled={state.loading}
-                      aria-required="true"
-                    />
+                    <PromptInputContainer>
+                      <PromptLabel htmlFor="prompt-input">Describe your fashion item</PromptLabel>
+                      <PromptInputWrapper>
+                        <PromptInput
+                          id="prompt-input"
+                          type="text"
+                          value={state.prompt}
+                          onChange={(e) => setState(prev => ({ ...prev, prompt: e.target.value }))}
+                          placeholder="Enter a detailed description of the fashion item you want to generate..."
+                          disabled={state.loading}
+                          aria-required="true"
+                          maxLength={200}
+                          hasError={state.error}
+                        />
+                        <PromptCounter count={state.prompt.length} maxLength={200}>
+                          {state.prompt.length}/200
+                        </PromptCounter>
+                      </PromptInputWrapper>
+                      <PromptHint>
+                        💡 Tip: Be specific about colors, materials, and style details
+                      </PromptHint>
+                      {state.error && (
+                        <PromptError>
+                          ⚠️ {state.error}
+                        </PromptError>
+                      )}
+                      <PromptExamples>
+                        {PROMPT_EXAMPLES.map((example, index) => (
+                          <ExampleButton
+                            key={index}
+                            onClick={() => setState(prev => ({ ...prev, prompt: example }))}
+                            type="button"
+                          >
+                            {example}
+                          </ExampleButton>
+                        ))}
+                      </PromptExamples>
+                    </PromptInputContainer>
                     <Button
                       type="submit"
                       disabled={isGenerateDisabled || !state.selectedInitialModel}
                       aria-label="Generate initial image"
+                      style={{ marginTop: '16px' }}
                     >
-                      생성
+                      Generate Image
                     </Button>
                   </Form>
                 </>
@@ -1554,4 +1690,4 @@ const ImageGenerator = () => {
   );
 };
 
-export default ImageGenerator;
+export default ImageGeneratepage;

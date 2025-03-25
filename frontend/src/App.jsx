@@ -1,11 +1,11 @@
 import React from "react";
-import ImageGenerator from "./components/ImageGenerator";
+import ImageGeneratepage from "./components/ImageGeneratepage";
 
 function App() {
   return (
     <div className="App">
-      <ImageGenerator />
-    </div>    
+      <ImageGeneratepage />
+    </div>
   );
 }
 
