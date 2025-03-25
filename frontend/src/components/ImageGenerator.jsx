@@ -181,13 +181,19 @@ const ImageControlArea = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
-const Form = styled.form`
+const Form = styled.form.attrs(props => ({
+  'aria-label': 'Image generation form',
+}))`
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
 `;
 
-const Input = styled.input`
+const Input = styled.input.attrs(props => ({
+  'aria-label': 'Text prompt input',
+  'aria-disabled': props.disabled,
+  'aria-required': props.required,
+}))`
   flex: 1;
   padding: 12px;
   border-radius: 6px;
@@ -195,7 +201,10 @@ const Input = styled.input`
   font-size: 1rem;
 `;
 
-const Button = styled.button`
+const Button = styled.button.attrs(props => ({
+  'aria-disabled': props.disabled,
+  role: 'button',
+}))`
   padding: 12px 24px;
   background-color: ${props => {
     if (props.variant === 'success') return '#28a745';
@@ -529,18 +538,26 @@ const ImageGenerator = () => {
 
           <ContentArea>
             <ImageControlArea>
-              <Form onSubmit={(e) => {
-                e.preventDefault();
-                handleInitialGeneration();
-              }}>
+              <Form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleInitialGeneration();
+                }}
+                aria-label="Image generation form"
+              >
                 <Input
                   type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="텍스트 프롬프트를 입력하세요 (예: yellow T-shirt)"
                   disabled={loading}
+                  aria-required="true"
                 />
-                <Button type="submit" disabled={loading || !prompt}>
+                <Button
+                  type="submit"
+                  disabled={loading || !prompt}
+                  aria-label="Generate initial image"
+                >
                   생성
                 </Button>
               </Form>
@@ -580,15 +597,27 @@ const ImageGenerator = () => {
               )}
 
               {initialImage && (
-                <ButtonGroup>
-                  <Button onClick={handleRegenerate} disabled={loading}>
+                <ButtonGroup role="group" aria-label="Image control buttons">
+                  <Button
+                    onClick={handleRegenerate}
+                    disabled={loading}
+                    aria-label="Regenerate image"
+                  >
                     regenerate
                   </Button>
-                  <Button onClick={handleReset} disabled={loading}>
+                  <Button
+                    onClick={handleReset}
+                    disabled={loading}
+                    aria-label="Reset all inputs"
+                  >
                     reset
                   </Button>
                   {!finalImage ? (
-                    <Button onClick={handleFinalGeneration} disabled={loading}>
+                    <Button
+                      onClick={handleFinalGeneration}
+                      disabled={loading}
+                      aria-label="Transform image style"
+                    >
                       style transform
                     </Button>
                   ) : (
@@ -611,6 +640,7 @@ const ImageGenerator = () => {
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
                       }}
+                      aria-label="Download transformed image"
                     >
                       download
                     </Button>
@@ -663,7 +693,12 @@ const ImageGenerator = () => {
         </MainContent>
 
         <HistoryButton showSidebar={showSidebar}>
-          <Button onClick={() => setShowSidebar(!showSidebar)}>
+          <Button
+            onClick={() => setShowSidebar(!showSidebar)}
+            aria-expanded={showSidebar}
+            aria-controls="history-sidebar"
+            aria-label={showSidebar ? "Hide history sidebar" : "Show history sidebar"}
+          >
             {showSidebar ? "Hide History" : "Show History"}
           </Button>
         </HistoryButton>
@@ -684,16 +719,27 @@ const ImageGenerator = () => {
               setShowSidebar(false);
             }, 300);
           }}
+          role="complementary"
+          aria-label="Generation history"
+          id="history-sidebar"
         >
           <SidebarHeader>
             <h3 style={{ margin: 0 }}>Generation History</h3>
             <div style={{ display: "flex", gap: "8px" }}>
               {history.length > 0 && (
                 <>
-                  <Button variant="success" onClick={handleExportHistory}>
+                  <Button
+                    variant="success"
+                    onClick={handleExportHistory}
+                    aria-label="Export history"
+                  >
                     Export
                   </Button>
-                  <Button variant="danger" onClick={handleClearHistory}>
+                  <Button
+                    variant="danger"
+                    onClick={handleClearHistory}
+                    aria-label="Clear all history"
+                  >
                     Clear All
                   </Button>
                 </>
@@ -704,16 +750,24 @@ const ImageGenerator = () => {
                 onChange={handleImportHistory}
                 style={{ display: "none" }}
                 id="history-import"
+                aria-label="Import history from file"
               />
-              <Button onClick={() => document.getElementById('history-import').click()}>
+              <Button
+                onClick={() => document.getElementById('history-import').click()}
+                aria-label="Import history"
+              >
                 Import
               </Button>
             </div>
           </SidebarHeader>
 
-          <HistoryList>
+          <HistoryList role="list" aria-label="History items">
             {history.map(item => (
-              <HistoryItem key={item.id}>
+              <HistoryItem
+                key={item.id}
+                role="listitem"
+                aria-label={`History item: ${item.prompt}`}
+              >
                 <HistoryItemHeader>
                   <div style={{ fontWeight: "bold" }}>
                     {item.prompt}
@@ -722,12 +776,14 @@ const ImageGenerator = () => {
                     <Button
                       variant="success"
                       onClick={() => handleRestoreHistory(item)}
+                      aria-label={`Restore generation: ${item.prompt}`}
                     >
                       Restore
                     </Button>
                     <Button
                       variant="danger"
                       onClick={() => handleDeleteHistory(item.id)}
+                      aria-label={`Delete history item: ${item.prompt}`}
                     >
                       Delete
                     </Button>
