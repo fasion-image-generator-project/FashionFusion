@@ -695,25 +695,35 @@ const PresetContainer = styled.div`
 const PresetButton = styled.button`
   padding: 6px 12px;
   border-radius: 4px;
-  border: 1px solid ${props => props.theme.borderColor};
-  background-color: ${props => props.active ? props.theme.primaryColor : 'transparent'};
-  color: ${props => props.active ? 'white' : props.theme.textColor};
+  border: 1px solid ${props => props.theme.border};
+  background-color: ${props => props.active ? props.theme.primary : props.theme.surface};
+  color: ${props => props.active ? 'white' : props.theme.text};
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 14px;
+  font-weight: ${props => props.active ? 'bold' : 'normal'};
 
   &:hover {
-    background-color: ${props => props.theme.primaryColorLight};
+    background-color: ${props => props.theme.primary};
     color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
 const SavePresetButton = styled(PresetButton)`
-  background-color: ${props => props.theme.successColor};
+  background-color: ${props => props.theme.success};
   color: white;
+  border-color: ${props => props.theme.success};
+  font-weight: bold;
 
   &:hover {
-    background-color: ${props => props.theme.successColorLight};
+    background-color: ${props => props.theme.success};
+    filter: brightness(1.1);
   }
 `;
 
@@ -739,6 +749,74 @@ const STYLE_GAN_PRESETS = {
     noise: 0.2,
     strength: 0.4,
   }
+};
+
+const TooltipContainer = styled.div`
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+  cursor: help;
+
+  &:hover > div {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TooltipIcon = styled.div`
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: ${props => props.theme.textSecondary};
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+`;
+
+const TooltipText = styled.div`
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: ${props => props.theme.tooltipBackground || props.theme.backgroundSecondary};
+  color: ${props => props.theme.textColor};
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 250px;
+  transition: all 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent ${props => props.theme.tooltipBackground || props.theme.backgroundSecondary} transparent transparent;
+  }
+`;
+
+const Tooltip = ({ text }) => (
+  <TooltipContainer>
+    <TooltipIcon>?</TooltipIcon>
+    <TooltipText>{text}</TooltipText>
+  </TooltipContainer>
+);
+
+// 파라미터 설명
+const PARAMETER_DESCRIPTIONS = {
+  truncation: "스타일의 다양성을 조절합니다. 높은 값(1.0)은 더 독특하고 창의적인 결과를, 낮은 값(0.1)은 더 안정적이고 일관된 결과를 생성합니다.",
+  noise: "이미지의 세부 디테일 수준을 조절합니다. 높은 값은 더 많은 텍스처와 디테일을, 낮은 값은 더 부드럽고 깔끔한 결과를 만듭니다.",
+  strength: "변환의 강도를 조절합니다. 높은 값은 원본 이미지를 크게 변형하고, 낮은 값은 미묘한 변화만을 적용합니다."
 };
 
 /**
@@ -1237,7 +1315,10 @@ const ImageGenerator = () => {
 
                     <SliderContainer>
                       <SliderHeader>
-                        <SliderLabel>Truncation (Style Variation)</SliderLabel>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <SliderLabel>Truncation (Style Variation)</SliderLabel>
+                          <Tooltip text={PARAMETER_DESCRIPTIONS.truncation} />
+                        </div>
                         <SliderValue>{styleGanParams.truncation.toFixed(2)}</SliderValue>
                       </SliderHeader>
                       <StyledSlider
@@ -1252,7 +1333,10 @@ const ImageGenerator = () => {
 
                     <SliderContainer>
                       <SliderHeader>
-                        <SliderLabel>Noise (Detail Level)</SliderLabel>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <SliderLabel>Noise (Detail Level)</SliderLabel>
+                          <Tooltip text={PARAMETER_DESCRIPTIONS.noise} />
+                        </div>
                         <SliderValue>{styleGanParams.noise.toFixed(2)}</SliderValue>
                       </SliderHeader>
                       <StyledSlider
@@ -1267,7 +1351,10 @@ const ImageGenerator = () => {
 
                     <SliderContainer>
                       <SliderHeader>
-                        <SliderLabel>Strength (Transform Intensity)</SliderLabel>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <SliderLabel>Strength (Transform Intensity)</SliderLabel>
+                          <Tooltip text={PARAMETER_DESCRIPTIONS.strength} />
+                        </div>
                         <SliderValue>{styleGanParams.strength.toFixed(2)}</SliderValue>
                       </SliderHeader>
                       <StyledSlider
