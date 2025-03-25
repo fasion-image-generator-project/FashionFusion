@@ -685,6 +685,62 @@ const StyledSlider = styled.input.attrs({ type: 'range' })`
   }
 `;
 
+const PresetContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+`;
+
+const PresetButton = styled.button`
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid ${props => props.theme.borderColor};
+  background-color: ${props => props.active ? props.theme.primaryColor : 'transparent'};
+  color: ${props => props.active ? 'white' : props.theme.textColor};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+
+  &:hover {
+    background-color: ${props => props.theme.primaryColorLight};
+    color: white;
+  }
+`;
+
+const SavePresetButton = styled(PresetButton)`
+  background-color: ${props => props.theme.successColor};
+  color: white;
+
+  &:hover {
+    background-color: ${props => props.theme.successColorLight};
+  }
+`;
+
+// 프리셋 정의
+const STYLE_GAN_PRESETS = {
+  Natural: {
+    truncation: 0.7,
+    noise: 0.3,
+    strength: 0.6,
+  },
+  Artistic: {
+    truncation: 0.9,
+    noise: 0.7,
+    strength: 0.8,
+  },
+  Bold: {
+    truncation: 1.0,
+    noise: 0.8,
+    strength: 1.0,
+  },
+  Subtle: {
+    truncation: 0.5,
+    noise: 0.2,
+    strength: 0.4,
+  }
+};
+
 /**
  * 메인 ImageGenerator 컴포넌트
  * 전체 애플리케이션의 상태와 로직을 관리
@@ -747,6 +803,44 @@ const ImageGenerator = () => {
     // 히스토리 변경 시 localStorage에 저장
     localStorage.setItem('imageGenerationHistory', JSON.stringify(history));
   }, [history]);
+
+  // 커스텀 프리셋 상태 관리
+  const [customPresets, setCustomPresets] = useState(() => {
+    const saved = localStorage.getItem('styleGanCustomPresets');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // 현재 선택된 프리셋 상태
+  const [activePreset, setActivePreset] = useState(null);
+
+  // 프리셋 적용 함수
+  const handlePresetClick = useCallback((presetName, presetValues) => {
+    setStyleGanParams(presetValues);
+    setActivePreset(presetName);
+  }, []);
+
+  // 현재 설정을 새 프리셋으로 저장
+  const handleSavePreset = useCallback(() => {
+    const presetName = prompt('Enter a name for this preset:');
+    if (presetName) {
+      const newPresets = {
+        ...customPresets,
+        [presetName]: { ...styleGanParams }
+      };
+      setCustomPresets(newPresets);
+      localStorage.setItem('styleGanCustomPresets', JSON.stringify(newPresets));
+      setActivePreset(presetName);
+    }
+  }, [customPresets, styleGanParams]);
+
+  // 파라미터 변경 시 activePreset 초기화
+  const handleStyleGanParamChange = useCallback((param, value) => {
+    setStyleGanParams(prev => ({
+      ...prev,
+      [param]: value
+    }));
+    setActivePreset(null);  // 파라미터가 변경되면 현재 선택된 프리셋 초기화
+  }, []);
 
   // 콜백 함수들
   /**
@@ -973,13 +1067,6 @@ const ImageGenerator = () => {
     setState(prev => ({ ...prev, selectedFinalModel: model }));
   }, []);
 
-  const handleStyleGanParamChange = useCallback((param, value) => {
-    setStyleGanParams(prev => ({
-      ...prev,
-      [param]: value
-    }));
-  }, []);
-
   // 렌더링 메서드들
   /**
    * 프롬프트 표시 영역 렌더링
@@ -1123,6 +1210,31 @@ const ImageGenerator = () => {
 
                   {/* Style GAN-ada Parameters */}
                   <SliderPanel show={state.selectedFinalModel === "Style GAN-ada"}>
+                    {/* Presets */}
+                    <PresetContainer>
+                      {Object.entries(STYLE_GAN_PRESETS).map(([name, values]) => (
+                        <PresetButton
+                          key={name}
+                          active={activePreset === name}
+                          onClick={() => handlePresetClick(name, values)}
+                        >
+                          {name}
+                        </PresetButton>
+                      ))}
+                      {Object.entries(customPresets).map(([name, values]) => (
+                        <PresetButton
+                          key={name}
+                          active={activePreset === name}
+                          onClick={() => handlePresetClick(name, values)}
+                        >
+                          {name}
+                        </PresetButton>
+                      ))}
+                      <SavePresetButton onClick={handleSavePreset}>
+                        Save Current
+                      </SavePresetButton>
+                    </PresetContainer>
+
                     <SliderContainer>
                       <SliderHeader>
                         <SliderLabel>Truncation (Style Variation)</SliderLabel>
