@@ -37,20 +37,16 @@ export const generateInitialImage = async (prompt, model, seed) => {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // 이미지 데이터를 Blob으로 받기
-        const blob = await response.blob();
+        // 이미지 데이터를 ArrayBuffer로 받기
+        const arrayBuffer = await response.arrayBuffer();
         
-        // Blob을 base64로 변환
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                // base64 문자열에서 data URL prefix 제거
-                const base64data = reader.result.split(',')[1];
-                resolve(base64data);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
+        // ArrayBuffer를 base64로 변환
+        const base64 = btoa(
+            new Uint8Array(arrayBuffer)
+                .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+
+        return base64;
     } catch (error) {
         console.error('Error generating initial image:', error);
         throw error;

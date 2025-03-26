@@ -1364,7 +1364,7 @@ const ImageGeneratepage = () => {
   /**
    * 초기 이미지 생성 처리
    */
-  const handleInitialGeneration = useCallback(async () => {
+  const handleInitialGeneration = useCallback(async (seed) => {
     if (!state.prompt || !state.selectedInitialModel) return;
 
     setState(prev => ({ ...prev, loading: true, error: "" }));
@@ -1378,13 +1378,12 @@ const ImageGeneratepage = () => {
           finalImage: ""
         }));
       } else {
-        // 랜덤 시드 생성 (0-1000000 사이의 정수)
-        const seed = Math.floor(Math.random() * 1000000);
         const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel, seed);
-        // 이미지 데이터를 data URL 형식으로 변환
+        // base64 데이터를 data URL 형식으로 변환
+        const imageUrl = `data:image/png;base64,${imageData}`;
         setState(prev => ({
           ...prev,
-          initialImage: `data:image/png;base64,${imageData}`,
+          initialImage: imageUrl,
           finalImage: ""
         }));
       }
@@ -1398,7 +1397,7 @@ const ImageGeneratepage = () => {
   /**
    * 최종 이미지 변환 처리
    */
-  const handleFinalGeneration = useCallback(async () => {
+  const handleFinalGeneration = useCallback(async (seed) => {
     if (!state.initialImage) return;
 
     setState(prev => ({ ...prev, loading: true, error: "" }));
@@ -1411,8 +1410,6 @@ const ImageGeneratepage = () => {
           finalImage: DUMMY_IMAGES[state.selectedFinalModel].FINAL
         }));
       } else {
-        // 랜덤 시드 생성 (0-1000000 사이의 정수)
-        const seed = Math.floor(Math.random() * 1000000);
         const imageData = await generateFinalImage(state.initialImage, state.selectedFinalModel, seed);
         setState(prev => ({
           ...prev,
@@ -1431,9 +1428,13 @@ const ImageGeneratepage = () => {
    */
   const handleRegenerate = useCallback(() => {
     if (state.finalImage) {
-      handleFinalGeneration();
+      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+      const seed = Math.floor(Math.random() * 1000000);
+      handleFinalGeneration(seed);
     } else {
-      handleInitialGeneration();
+      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+      const seed = Math.floor(Math.random() * 1000000);
+      handleInitialGeneration(seed);
     }
   }, [state.finalImage, handleFinalGeneration, handleInitialGeneration]);
 
@@ -1557,7 +1558,9 @@ const ImageGeneratepage = () => {
                   <Form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      handleInitialGeneration();
+                      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+                      const seed = Math.floor(Math.random() * 1000000);
+                      handleInitialGeneration(seed);
                     }}
                     aria-label="Image generation form"
                   >
@@ -1809,7 +1812,11 @@ const ImageGeneratepage = () => {
                   </Button>
                   {!state.finalImage ? (
                     <Button
-                      onClick={handleFinalGeneration}
+                      onClick={() => {
+                        // 랜덤 시드 생성 (0-1000000 사이의 정수)
+                        const seed = Math.floor(Math.random() * 1000000);
+                        handleFinalGeneration(seed);
+                      }}
                       disabled={state.loading || !state.selectedFinalModel}
                       aria-label="Transform image style"
                     >
