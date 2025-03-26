@@ -15,7 +15,7 @@ import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-comp
 import { generateInitialImage, generateFinalImage } from "../api";
 
 // 개발 및 테스트를 위한 상수 정의
-const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
+const USE_DUMMY_DATA = false; // true: 더미 데이터 사용, false: 실제 API 호출
 
 // 더미 이미지 데이터 - 개발 및 테스트용
 const DUMMY_IMAGES = {
@@ -1378,7 +1378,10 @@ const ImageGeneratepage = () => {
           finalImage: ""
         }));
       } else {
-        const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel);
+        // 랜덤 시드 생성 (0-1000000 사이의 정수)
+        const seed = Math.floor(Math.random() * 1000000);
+        const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel, seed);
+        // 이미지 데이터를 data URL 형식으로 변환
         setState(prev => ({
           ...prev,
           initialImage: `data:image/png;base64,${imageData}`,
@@ -1403,70 +1406,25 @@ const ImageGeneratepage = () => {
     try {
       if (USE_DUMMY_DATA) {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        // Style GAN-ada 모델일 경우 파라미터 값에 따라 다른 더미 이미지 생성
-        let finalImageData;
-        if (state.selectedFinalModel === "Style GAN-ada") {
-          // 파라미터 값에 따라 SVG 색상 조정
-          const hue = Math.floor(styleGanParams.truncation * 360);
-          const saturation = Math.floor(styleGanParams.noise * 100);
-          const lightness = Math.floor(styleGanParams.strength * 100);
-
-          finalImageData = "data:image/svg+xml;base64," + btoa(`
-            <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-              <rect width="100%" height="100%" fill="hsl(${hue}, ${saturation}%, ${lightness}%)"/>
-              <text x="50%" y="30%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Transformed by Style GAN-ada</text>
-              <text x="50%" y="50%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Truncation: ${styleGanParams.truncation.toFixed(2)}</text>
-              <text x="50%" y="60%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Noise: ${styleGanParams.noise.toFixed(2)}</text>
-              <text x="50%" y="70%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Strength: ${styleGanParams.strength.toFixed(2)}</text>
-            </svg>
-          `);
-        } else {
-          finalImageData = DUMMY_IMAGES[state.selectedFinalModel].FINAL;
-        }
-
-        setState(prev => ({ ...prev, finalImage: finalImageData }));
-
-        const newHistoryItem = {
-          id: Date.now(),
-          prompt: state.prompt,
-          initialImage: state.initialImage,
-          finalImage: finalImageData,
-          model: state.selectedFinalModel,
-          timestamp: new Date().toLocaleString(),
-          ...(state.selectedFinalModel === "Style GAN-ada" && {
-            parameters: { ...styleGanParams }
-          })
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
+        setState(prev => ({
+          ...prev,
+          finalImage: DUMMY_IMAGES[state.selectedFinalModel].FINAL
+        }));
       } else {
-        // 실제 API 호출 시에도 Style GAN-ada 파라미터 전달
-        const imageData = await generateFinalImage(
-          state.initialImage,
-          state.selectedFinalModel,
-          state.selectedFinalModel === "Style GAN-ada" ? styleGanParams : undefined
-        );
-        const finalImageData = `data:image/png;base64,${imageData}`;
-        setState(prev => ({ ...prev, finalImage: finalImageData }));
-
-        const newHistoryItem = {
-          id: Date.now(),
-          prompt: state.prompt,
-          initialImage: state.initialImage,
-          finalImage: finalImageData,
-          model: state.selectedFinalModel,
-          timestamp: new Date().toLocaleString(),
-          ...(state.selectedFinalModel === "Style GAN-ada" && {
-            parameters: { ...styleGanParams }
-          })
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
+        // 랜덤 시드 생성 (0-1000000 사이의 정수)
+        const seed = Math.floor(Math.random() * 1000000);
+        const imageData = await generateFinalImage(state.initialImage, state.selectedFinalModel, seed);
+        setState(prev => ({
+          ...prev,
+          finalImage: `data:image/png;base64,${imageData}`
+        }));
       }
     } catch (err) {
       setState(prev => ({ ...prev, error: err.message }));
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [state.initialImage, state.selectedFinalModel, state.prompt, styleGanParams]);
+  }, [state.initialImage, state.selectedFinalModel]);
 
   /**
    * 이미지 재생성 처리

@@ -19,26 +19,33 @@ if not HF_API_TOKEN:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Stable Diffusion model IDs
+# Stable Diffusion model IDs and endpoints
 STABLE_DIFFUSION_MODELS = {
-    "Stable Diffusion 1.5": "runwayml/stable-diffusion-v1-5",
-    "Stable Diffusion 3.5": "stabilityai/stable-diffusion-3.5-large",
+    "Stable Diffusion 1.5": {
+        "model_id": "runwayml/stable-diffusion-v1-5",
+        "endpoint": "https://cysjxaqpfnhrehzk.tunnel-pt.elice.io/proxy/8000/stablediffusion-1-5",
+    },
+    "Stable Diffusion 3.5": {
+        "model_id": "stabilityai/stable-diffusion-3.5-large",
+        "endpoint": "https://wrztjrpgzttncatd.tunnel-pt.elice.io/proxy/8000/stablediffusion-3-5",
+    },
 }
 
 # Initialize InferenceClient dictionary for each model
 clients = {
-    model_name: InferenceClient(model_id, token=HF_API_TOKEN)
-    for model_name, model_id in STABLE_DIFFUSION_MODELS.items()
+    model_name: InferenceClient(model_info["model_id"], token=HF_API_TOKEN)
+    for model_name, model_info in STABLE_DIFFUSION_MODELS.items()
 }
 
 
-async def run_initial_inference(prompt: str, model: str):
+async def run_initial_inference(prompt: str, model: str, seed: int = None):
     """
     Generate an image from a text prompt using the selected Stable Diffusion model.
 
     Args:
         prompt (str): The text prompt for image generation.
         model (str): The selected model name ("Stable Diffusion 1.5" or "Stable Diffusion 3.5")
+        seed (int, optional): Random seed for image generation
 
     Returns:
         str: The Base64-encoded string of the generated image.
@@ -47,15 +54,23 @@ async def run_initial_inference(prompt: str, model: str):
         if model not in STABLE_DIFFUSION_MODELS:
             raise ValueError(f"Invalid model selection: {model}")
 
-        client = clients[model]
-        response = client.text_to_image(prompt=prompt)
+        endpoint = STABLE_DIFFUSION_MODELS[model]["endpoint"]
 
-        with BytesIO() as buffer:
-            response.save(buffer, format="JPEG")
-            image_bytes = buffer.getvalue()
+        async with httpx.AsyncClient() as client:
+            request_data = {"prompt": prompt}
+            if seed is not None:
+                request_data["seed"] = seed
 
-        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
-        return encoded_image
+            response = await client.post(endpoint, json=request_data, timeout=30.0)
+            response.raise_for_status()
+            result = response.json()
+
+            # Assuming the API returns the image in base64 format
+            if "image" in result:
+                return result["image"]
+            else:
+                raise ValueError("No image data in response")
+
     except Exception as e:
         logger.error(f"Stable Diffusion API error: {str(e)}")
         raise Exception(f"Stable Diffusion API error: {str(e)}")
@@ -104,40 +119,54 @@ def encode_image_to_base64(img: Image.Image) -> str:
         return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-async def run_final_inference(initial_image_url: str, selected_model: str) -> str:
+async def run_final_inference(
+    initial_image_url: str, selected_model: str, seed: int = None
+) -> str:
     """
     Process the initial image using the selected model and return the result as a base64 string.
 
     Args:
         initial_image_url (str): URL or file path of the initial image.
         selected_model (str): The model to use for processing.
+        seed (int, optional): Random seed for image generation
 
     Returns:
         str: Base64-encoded string of the processed image.
     """
-    # 이미지 다운로드 및 전처리
-    image = await download_image(initial_image_url)
-    # image.show()
-
-    # 이미지를 바이트 데이터로 변환 (예: PNG 형식)
-    with BytesIO() as img_buffer:
-        image.save(img_buffer, format="PNG")
-        image_bytes = img_buffer.getvalue()
-
-    # 이제 InferenceClient에 전달할 때, PIL.Image 객체 대신 바이트 데이터를 전달합니다.
-    prompt = "Turn the object in the picture into a cyborg"
     try:
-        # image_bytes를 전달 (바이트 데이터)
-        response = client.image_to_image(
-            image_bytes, prompt, model=MODEL_IDS["image_to_image"]
-        )
+        if selected_model not in STABLE_DIFFUSION_MODELS:
+            raise ValueError(f"Invalid model selection: {selected_model}")
 
-        with BytesIO() as buffer:
-            response.save(buffer, format="JPEG")
-            result_bytes = buffer.getvalue()
+        # 이미지 다운로드 및 전처리
+        image = await download_image(initial_image_url)
 
-        encoded_image = base64.b64encode(result_bytes).decode("utf-8")
-        return encoded_image
+        # 이미지를 base64로 인코딩
+        image_base64 = encode_image_to_base64(image)
+
+        endpoint = STABLE_DIFFUSION_MODELS[selected_model]["endpoint"]
+
+        async with httpx.AsyncClient() as client:
+            request_data = {
+                "prompt": "Turn the object in the picture into a cyborg",
+                "image": image_base64,
+            }
+            if seed is not None:
+                request_data["seed"] = seed
+
+            response = await client.post(
+                endpoint,
+                json=request_data,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            # Assuming the API returns the image in base64 format
+            if "image" in result:
+                return result["image"]
+            else:
+                raise ValueError("No image data in response")
+
     except Exception as e:
         logger.error(f"Stable Diffusion API error: {str(e)}")
         raise Exception(f"Stable Diffusion API error: {str(e)}")
