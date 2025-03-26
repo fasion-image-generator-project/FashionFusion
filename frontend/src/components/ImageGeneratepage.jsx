@@ -456,17 +456,13 @@ const ModelHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-const ModelIcon = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background-color: ${props => props.theme.primary + '20'};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${props => props.theme.primary};
-  font-size: 1.2rem;
-`;
+const ModelIcon = ({ option }) => {
+  if (option.id === "Stable Diffusion 1.5") return "🎨";
+  if (option.id === "Stable Diffusion 3.5") return "🖼️";
+  if (option.id === "Disco GAN") return "💃";
+  if (option.id === "Style GAN-ada") return "✨";
+  return "🎨";
+};
 
 const ModelTitle = styled.div`
   font-weight: 600;
@@ -753,10 +749,7 @@ const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
               onClick={() => onModelChange(option.id)}
             >
               <ModelHeader>
-                <ModelIcon>
-                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                    option.id.includes("Disco") ? "💃" : "✨"}
-                </ModelIcon>
+                <ModelIcon option={option} />
                 <ModelTitle>{option.label}</ModelTitle>
               </ModelHeader>
               <ModelDescription>
@@ -1529,10 +1522,7 @@ const ImageGeneratepage = () => {
                               onClick={() => handleInitialModelChange(option.id)}
                             >
                               <ModelHeader>
-                                <ModelIcon>
-                                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                                    option.id.includes("Disco") ? "💃" : "✨"}
-                                </ModelIcon>
+                                <ModelIcon option={option} />
                                 <ModelTitle>{option.label}</ModelTitle>
                               </ModelHeader>
                               <ModelDescription>
@@ -1633,10 +1623,7 @@ const ImageGeneratepage = () => {
                               onClick={() => handleFinalModelChange(option.id)}
                             >
                               <ModelHeader>
-                                <ModelIcon>
-                                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                                    option.id.includes("Disco") ? "💃" : "✨"}
-                                </ModelIcon>
+                                <ModelIcon option={option} />
                                 <ModelTitle>{option.label}</ModelTitle>
                               </ModelHeader>
                               <ModelDescription>
