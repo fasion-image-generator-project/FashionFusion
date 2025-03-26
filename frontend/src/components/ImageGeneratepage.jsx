@@ -15,7 +15,7 @@ import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-comp
 import { generateInitialImage, generateFinalImage } from "../api";
 
 // 개발 및 테스트를 위한 상수 정의
-const USE_DUMMY_DATA = false; // true: 더미 데이터 사용, false: 실제 API 호출
+const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
 
 // 더미 이미지 데이터 - 개발 및 테스트용
 const DUMMY_IMAGES = {
