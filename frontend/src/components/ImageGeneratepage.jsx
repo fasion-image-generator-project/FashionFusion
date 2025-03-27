@@ -12,10 +12,11 @@
 // src/components/ImageGeneratepage.jsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-components";
-import { generateInitialImage, generateVariations } from "../api";
+import { generateInitialImage, generateVariations, uploadImage, seedStyleMixing, getSimplifiedResults } from "../api";
+import JSZip from "jszip";
 
 // 개발 및 테스트를 위한 상수 정의
-const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
+const USE_DUMMY_DATA = false; // true: 더미 데이터 사용, false: 실제 API 호출
 
 // 더미 이미지 데이터 - 개발 및 테스트용
 const DUMMY_IMAGES = {
@@ -1521,15 +1522,48 @@ const ImageGeneratepage = () => {
     selectedInitialModel: "Stable Diffusion 1.5",  // 초기 이미지 생성용 모델
     currentFrame: 0,        // 현재 프레임
     isPlaying: false,       // 재생 상태
-    totalFrames: 721,       // 총 프레임 수
+    totalFrames: 100,       // 총 프레임 수 (721에서 100으로 변경)
     fps: 30                 // FPS
   });
 
+  // 히스토리 최대 항목 수
+  const MAX_HISTORY_ITEMS = 5; // 10에서 5로 줄임
+
   // 히스토리 상태 - localStorage와 동기화
   const [history, setHistory] = useState(() => {
-    const savedHistory = localStorage.getItem('imageGenerationHistory');
-    return savedHistory ? JSON.parse(savedHistory) : [];
+    try {
+      const savedHistory = localStorage.getItem('imageGenerationHistory');
+      return savedHistory ? JSON.parse(savedHistory) : [];
+    } catch (error) {
+      console.error('Failed to load history:', error);
+      return [];
+    }
   });
+
+  // 효과
+  useEffect(() => {
+    // 히스토리 변경 시 localStorage에 저장
+    try {
+      // 최대 항목 수를 초과하는 경우 오래된 항목 제거
+      const trimmedHistory = history.slice(0, MAX_HISTORY_ITEMS);
+
+      // 이미지 데이터를 URL로만 저장하도록 변환
+      const optimizedHistory = trimmedHistory.map(item => ({
+        ...item,
+        initialImage: item.initialImage.startsWith('data:') ? item.initialImage.split(',')[0] : item.initialImage,
+        variationImages: item.variationImages.map(img =>
+          img.startsWith('data:') ? img.split(',')[0] : img
+        )
+      }));
+
+      localStorage.setItem('imageGenerationHistory', JSON.stringify(optimizedHistory));
+    } catch (error) {
+      console.error('Failed to save history:', error);
+      // 저장 실패 시 히스토리 초기화
+      setHistory([]);
+      localStorage.removeItem('imageGenerationHistory');
+    }
+  }, [history]);
 
   // 사이드바 표시 상태
   const [showSidebar, setShowSidebar] = useState(false);
@@ -1559,12 +1593,6 @@ const ImageGeneratepage = () => {
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
-
-  // 효과
-  useEffect(() => {
-    // 히스토리 변경 시 localStorage에 저장
-    localStorage.setItem('imageGenerationHistory', JSON.stringify(history));
-  }, [history]);
 
   // 커스텀 프리셋 상태 관리
   const [customPresets, setCustomPresets] = useState(() => {
@@ -1723,7 +1751,19 @@ const ImageGeneratepage = () => {
     setState(prev => ({ ...prev, loading: true, error: "" }));
 
     try {
-      const images = await generateVariations(state.initialImage);
+      // 1. 이미지 업로드
+      const uploadResult = await uploadImage(state.initialImage);
+
+      // 2. 랜덤 시드 기반 스타일 믹싱 시작
+      const response = await seedStyleMixing(uploadResult.image_id);
+
+      // 3. 결과 다운로드
+      const images = await getSimplifiedResults(response.job_id);
+
+      if (!images || images.length === 0) {
+        throw new Error('Failed to generate variations');
+      }
+
       setState(prev => ({
         ...prev,
         variationImages: images,
@@ -1736,31 +1776,44 @@ const ImageGeneratepage = () => {
         id: Date.now(),
         prompt: state.prompt,
         initialImage: state.initialImage,
-        variationImages: images,  // 모든 변형 이미지 저장
+        variationImages: images,
         currentFrame: 0,
-        totalFrames: images.length,  // 실제 생성된 이미지 수로 설정
+        totalFrames: images.length,
         timestamp: new Date().toISOString(),
         model: state.selectedInitialModel
       };
 
-      setHistory(prev => [newHistoryItem, ...prev]);
-      localStorage.setItem('imageGenerationHistory', JSON.stringify([newHistoryItem, ...history]));
+      setHistory(prev => {
+        // 새로운 항목을 앞에 추가하고 최대 항목 수 유지
+        const newHistory = [newHistoryItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+        return newHistory;
+      });
     } catch (err) {
       setState(prev => ({ ...prev, error: err.message }));
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [state.initialImage, state.prompt, state.selectedInitialModel, history]);
+  }, [state.initialImage, state.prompt, state.selectedInitialModel]);
 
   // 프레임 재생 관련 효과
   useEffect(() => {
     let interval;
     if (state.isPlaying) {
       interval = setInterval(() => {
-        setState(prev => ({
-          ...prev,
-          currentFrame: (prev.currentFrame + 1) % prev.totalFrames
-        }));
+        setState(prev => {
+          // 마지막 프레임에 도달하면 재생 중지
+          if (prev.currentFrame >= prev.totalFrames - 1) {
+            return {
+              ...prev,
+              currentFrame: prev.totalFrames - 1,
+              isPlaying: false
+            };
+          }
+          return {
+            ...prev,
+            currentFrame: prev.currentFrame + 1
+          };
+        });
       }, 1000 / state.fps);
     }
     return () => clearInterval(interval);
@@ -1806,6 +1859,9 @@ const ImageGeneratepage = () => {
     setState(prev => ({ ...prev, selectedInitialModel: model }));
   }, []);
 
+  /**
+   * 히스토리 항목 저장
+   */
   const handleSaveToHistory = useCallback(() => {
     if (!state.prompt || !state.initialImage) return;
 
@@ -1820,9 +1876,12 @@ const ImageGeneratepage = () => {
       model: state.selectedInitialModel
     };
 
-    setHistory(prev => [newHistoryItem, ...prev]);
-    localStorage.setItem('imageGenerationHistory', JSON.stringify([newHistoryItem, ...history]));
-  }, [state.prompt, state.initialImage, state.variationImages, state.currentFrame, state.totalFrames, state.selectedInitialModel, history]);
+    setHistory(prev => {
+      // 새로운 항목을 앞에 추가하고 최대 항목 수 유지
+      const newHistory = [newHistoryItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+      return newHistory;
+    });
+  }, [state.prompt, state.initialImage, state.variationImages, state.currentFrame, state.totalFrames, state.selectedInitialModel]);
 
   const handleLoadFromHistory = useCallback((item) => {
     setState(prev => ({
@@ -2041,7 +2100,7 @@ const ImageGeneratepage = () => {
                       }}
                     />
                     <FrameInfo>
-                      프레임: {state.currentFrame + 1} / {state.totalFrames}
+                      프레임: {String(state.currentFrame + 1).padStart(3, '0')} / {String(state.totalFrames).padStart(3, '0')}
                     </FrameInfo>
                     <SliderControls>
                       <PlaybackControls>
