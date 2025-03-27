@@ -12,10 +12,11 @@
 // src/components/ImageGeneratepage.jsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-components";
-import { generateInitialImage, generateFinalImage } from "../api";
+import { generateInitialImage, generateVariations, uploadImage, seedStyleMixing, getSimplifiedResults } from "../api";
+import JSZip from "jszip";
 
 // 개발 및 테스트를 위한 상수 정의
-const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
+const USE_DUMMY_DATA = false; // true: 더미 데이터 사용, false: 실제 API 호출
 
 // 더미 이미지 데이터 - 개발 및 테스트용
 const DUMMY_IMAGES = {
@@ -357,7 +358,7 @@ const Button = styled.button.attrs(props => ({
   'aria-disabled': props.disabled,
   role: 'button',
 }))`
-  padding: 12px 24px;
+  padding: 10px 20px;
   background-color: ${props => {
     if (props.variant === 'success') return props.theme.success;
     if (props.variant === 'danger') return props.theme.danger;
@@ -365,16 +366,55 @@ const Button = styled.button.attrs(props => ({
   }};
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   opacity: ${props => props.disabled ? 0.6 : 1};
-  font-size: 1rem;
-  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 500;
   transition: all 0.2s ease;
+  min-width: 120px;
+  text-align: center;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  position: relative;
+  overflow: hidden;
 
   &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
     filter: brightness(1.1);
   }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  ${props => props.isHistoryButton && `
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    min-width: 100px;
+    width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: none;
+    transform: none;
+
+    &:hover:not(:disabled) {
+      transform: none;
+      box-shadow: none;
+    }
+
+    &:active:not(:disabled) {
+      transform: none;
+      box-shadow: none;
+    }
+  `}
 `;
 
 const ImageContainer = styled.div`
@@ -415,9 +455,11 @@ const LoadingOverlay = styled.div`
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  padding: 0 16px;
 `;
 
 const ModelCard = styled.div`
@@ -456,17 +498,13 @@ const ModelHeader = styled.div`
   margin-bottom: 12px;
 `;
 
-const ModelIcon = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background-color: ${props => props.theme.primary + '20'};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${props => props.theme.primary};
-  font-size: 1.2rem;
-`;
+const ModelIcon = ({ option }) => {
+  if (option.id === "Stable Diffusion 1.5") return "🎨";
+  if (option.id === "Stable Diffusion 3.5") return "🖼️";
+  if (option.id === "Disco GAN") return "💃";
+  if (option.id === "Style GAN-ada") return "✨";
+  return "🎨";
+};
 
 const ModelTitle = styled.div`
   font-weight: 600;
@@ -537,6 +575,13 @@ const HistoryButton = styled.div`
   top: 20px;
   z-index: 1000;
   transition: right 0.3s ease-in-out;
+
+  button {
+    width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
 const SidebarTrigger = styled.div`
@@ -562,6 +607,22 @@ const Sidebar = styled.div`
   padding: 20px;
   overflow-y: auto;
   color: ${props => props.theme.text};
+  scrollbar-width: thin;
+  scrollbar-color: ${props => props.theme.primary} ${props => props.theme.background};
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${props => props.theme.background};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: ${props => props.theme.primary};
+    border-radius: 4px;
+  }
 `;
 
 const SidebarHeader = styled.div`
@@ -583,32 +644,205 @@ const HistoryItem = styled.div`
   border-radius: 8px;
   background-color: ${props => props.theme.surface};
   box-shadow: 0 1px 3px ${props => props.theme.shadow};
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: ${props => props.theme.primary};
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
 `;
 
 const HistoryItemHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  gap: 12px;
+`;
+
+const HistoryItemTitle = styled.div`
+  font-weight: 600;
+  color: ${props => props.theme.text};
+  position: relative;
+  cursor: pointer;
+  padding: 8px;
+  background-color: ${props => props.theme.background};
+  border-radius: 6px;
+  border: 1px solid ${props => props.theme.border};
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: translateY(10px);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: ${props => props.theme.primary}10;
+    border-color: ${props => props.theme.primary};
+  }
+
+  &::before {
+    content: '💭';
+    font-size: 1.2rem;
+    opacity: 0.8;
+  }
+
+  ${HistoryItem}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const HistoryItemTooltip = styled.div`
+  visibility: hidden;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  width: 80%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px ${props => props.theme.shadow};
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.2s ease;
+  border: 1px solid ${props => props.theme.border};
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: ${props => props.theme.surface} transparent transparent transparent;
+  }
+
+  &.show {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TooltipOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${props => props.theme.overlay};
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+  }
+`;
+
+const HistoryItemActions = styled.div`
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+
+  ${HistoryItem}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
 `;
 
 const HistoryImages = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 `;
 
 const HistoryImage = styled.img`
-  width: 50%;
-  height: auto;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
   border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 `;
 
 const HistoryFooter = styled.div`
-  font-size: 0.9em;
-  color: ${props => props.theme.textSecondary};
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 0.9em;
+  color: ${props => props.theme.textSecondary};
+  padding-top: 8px;
+  border-top: 1px solid ${props => props.theme.border};
+`;
+
+const HistoryBadge = styled.span`
+  background-color: ${props => props.theme.primary}20;
+  color: ${props => props.theme.primary};
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+`;
+
+const HistoryEmptyState = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: ${props => props.theme.textSecondary};
+  background-color: ${props => props.theme.background};
+  border-radius: 8px;
+  margin: 20px 0;
+`;
+
+const HistoryEmptyIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+`;
+
+const HistoryEmptyText = styled.div`
+  font-size: 1.1em;
+  margin-bottom: 8px;
+`;
+
+const HistoryEmptySubtext = styled.div`
+  font-size: 0.9em;
+  color: ${props => props.theme.textSecondary};
 `;
 
 /**
@@ -622,42 +856,60 @@ const MemoizedLoadingSpinner = React.memo(LoadingSpinner);
  * 히스토리 아이템 컴포넌트
  * 개별 히스토리 항목을 표시하는 메모이제이션된 컴포넌트
  */
-const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => (
-  <HistoryItem
-    role="listitem"
-    aria-label={`History item: ${item.prompt}`}
-  >
-    <HistoryItemHeader>
-      <div style={{ fontWeight: "bold" }}>
+const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  return (
+    <HistoryItem
+      role="listitem"
+      aria-label={`History item: ${item.prompt}`}
+    >
+      <HistoryItemHeader>
+        <HistoryItemTitle onClick={() => setShowTooltip(true)} />
+        <HistoryItemActions>
+          <Button
+            variant="success"
+            onClick={() => onRestore(item)}
+            aria-label={`Restore generation: ${item.prompt}`}
+            isHistoryButton
+          >
+            restore
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => onDelete(item.id)}
+            aria-label={`Delete history item: ${item.prompt}`}
+            isHistoryButton
+          >
+            delete
+          </Button>
+        </HistoryItemActions>
+      </HistoryItemHeader>
+      <HistoryImages>
+        <HistoryImage src={item.initialImage} alt="Initial" />
+        {item.variationImages && item.variationImages.length > 0 && (
+          <HistoryImage src={item.variationImages[0]} alt="First variation" />
+        )}
+      </HistoryImages>
+      <HistoryFooter>
+        <span>{item.model}</span>
+        <span>{new Date(item.timestamp).toLocaleString()}</span>
+        {item.variationImages && item.variationImages.length > 0 && (
+          <HistoryBadge>
+            {item.variationImages.length} variations
+          </HistoryBadge>
+        )}
+      </HistoryFooter>
+      <TooltipOverlay
+        className={showTooltip ? 'show' : ''}
+        onClick={() => setShowTooltip(false)}
+      />
+      <HistoryItemTooltip className={showTooltip ? 'show' : ''}>
         {item.prompt}
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <Button
-          variant="success"
-          onClick={() => onRestore(item)}
-          aria-label={`Restore generation: ${item.prompt}`}
-        >
-          Restore
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => onDelete(item.id)}
-          aria-label={`Delete history item: ${item.prompt}`}
-        >
-          Delete
-        </Button>
-      </div>
-    </HistoryItemHeader>
-    <HistoryImages>
-      <HistoryImage src={item.initialImage} alt="Initial" />
-      <HistoryImage src={item.finalImage} alt="Final" />
-    </HistoryImages>
-    <HistoryFooter>
-      <span>{item.model}</span>
-      <span>{item.timestamp}</span>
-    </HistoryFooter>
-  </HistoryItem>
-));
+      </HistoryItemTooltip>
+    </HistoryItem>
+  );
+});
 
 /**
  * 모델 선택 컴포넌트
@@ -753,10 +1005,7 @@ const ModelSelectComponent = React.memo(({ selectedModel, onModelChange }) => (
               onClick={() => onModelChange(option.id)}
             >
               <ModelHeader>
-                <ModelIcon>
-                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                    option.id.includes("Disco") ? "💃" : "✨"}
-                </ModelIcon>
+                <ModelIcon option={option} />
                 <ModelTitle>{option.label}</ModelTitle>
               </ModelHeader>
               <ModelDescription>
@@ -805,81 +1054,101 @@ const ThemeToggle = styled.button`
   }
 `;
 
-const SliderPanel = styled.div`
-  margin-top: 15px;
-  padding: 15px;
+const SliderContainer = styled.div`
+  margin: 20px 0;
+  padding: 20px;
   background-color: ${props => props.theme.surface};
-  border: 1px solid ${props => props.theme.border};
-  border-radius: 8px;
-  display: ${props => props.show ? 'block' : 'none'};
+  border-radius: 12px;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 `;
 
-const SliderContainer = styled.div`
+const ThumbnailContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 0;
   margin-bottom: 15px;
-  
-  &:last-child {
-    margin-bottom: 0;
+  scrollbar-width: thin;
+  scrollbar-color: ${props => props.theme.primary} ${props => props.theme.background};
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${props => props.theme.background};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: ${props => props.theme.primary};
+    border-radius: 4px;
   }
 `;
 
-const SliderHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-`;
-
-const SliderLabel = styled.label`
-  font-size: 0.9rem;
-  color: ${props => props.theme.textSecondary};
-`;
-
-const SliderValue = styled.span`
-  font-size: 0.9rem;
-  color: ${props => props.theme.primary};
-  font-weight: bold;
-`;
-
-const StyledSlider = styled.input.attrs({ type: 'range' })`
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: ${props => props.theme.border};
-  outline: none;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  -webkit-appearance: none;
+const Thumbnail = styled.img`
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid ${props => props.isActive ? props.theme.primary : 'transparent'};
+  transition: all 0.2s ease;
 
   &:hover {
-    opacity: 1;
+    transform: scale(1.05);
+    border-color: ${props => props.theme.primary};
+  }
+`;
+
+const SliderControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+`;
+
+const PlaybackControls = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+const PlaybackButton = styled.button`
+  background: ${props => props.theme.surface};
+  border: 1px solid ${props => props.theme.border};
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: ${props => props.theme.text};
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
+
+  &:hover {
+    background-color: ${props => props.theme.primary};
+    color: white;
+    border-color: ${props => props.theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
   }
 
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${props => props.theme.primary};
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      transform: scale(1.2);
-    }
+  &:active {
+    transform: translateY(0);
   }
+`;
 
-  &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${props => props.theme.primary};
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      transform: scale(1.2);
-    }
-  }
+const FrameInfo = styled.div`
+  font-size: 0.9rem;
+  color: ${props => props.theme.textSecondary};
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const PresetContainer = styled.div`
@@ -1075,19 +1344,26 @@ const PromptExamples = styled.div`
 `;
 
 const ExampleButton = styled.button`
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: 8px 16px;
+  border-radius: 20px;
   border: 1px solid ${props => props.theme.border};
   background-color: ${props => props.theme.surface};
   color: ${props => props.theme.text};
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 
   &:hover {
     background-color: ${props => props.theme.primary};
     color: white;
     border-color: ${props => props.theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -1182,6 +1458,49 @@ const SkeletonButton = styled.div`
   border-radius: 20px;
 `;
 
+const Slider = styled.input.attrs({ type: 'range' })`
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: ${props => props.theme.border};
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  -webkit-appearance: none;
+  margin: 10px 0;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${props => props.theme.primary};
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${props => props.theme.primary};
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+`;
+
 /**
  * 메인 ImageGeneratepage 컴포넌트
  * 전체 애플리케이션의 상태와 로직을 관리
@@ -1197,18 +1516,54 @@ const ImageGeneratepage = () => {
   const [state, setState] = useState({
     prompt: "",              // 텍스트 프롬프트
     initialImage: "",        // 초기 생성된 이미지
-    finalImage: "",          // 변환된 이미지
+    variationImages: [],     // 변환된 이미지들
     loading: false,          // 로딩 상태
     error: "",              // 에러 메시지
     selectedInitialModel: "Stable Diffusion 1.5",  // 초기 이미지 생성용 모델
-    selectedFinalModel: "Disco GAN"     // 최종 이미지 생성용 모델
+    currentFrame: 0,        // 현재 프레임
+    isPlaying: false,       // 재생 상태
+    totalFrames: 100,       // 총 프레임 수 (721에서 100으로 변경)
+    fps: 30                 // FPS
   });
+
+  // 히스토리 최대 항목 수
+  const MAX_HISTORY_ITEMS = 5; // 10에서 5로 줄임
 
   // 히스토리 상태 - localStorage와 동기화
   const [history, setHistory] = useState(() => {
-    const savedHistory = localStorage.getItem('imageGenerationHistory');
-    return savedHistory ? JSON.parse(savedHistory) : [];
+    try {
+      const savedHistory = localStorage.getItem('imageGenerationHistory');
+      return savedHistory ? JSON.parse(savedHistory) : [];
+    } catch (error) {
+      console.error('Failed to load history:', error);
+      return [];
+    }
   });
+
+  // 효과
+  useEffect(() => {
+    // 히스토리 변경 시 localStorage에 저장
+    try {
+      // 최대 항목 수를 초과하는 경우 오래된 항목 제거
+      const trimmedHistory = history.slice(0, MAX_HISTORY_ITEMS);
+
+      // 이미지 데이터를 URL로만 저장하도록 변환
+      const optimizedHistory = trimmedHistory.map(item => ({
+        ...item,
+        initialImage: item.initialImage.startsWith('data:') ? item.initialImage.split(',')[0] : item.initialImage,
+        variationImages: item.variationImages.map(img =>
+          img.startsWith('data:') ? img.split(',')[0] : img
+        )
+      }));
+
+      localStorage.setItem('imageGenerationHistory', JSON.stringify(optimizedHistory));
+    } catch (error) {
+      console.error('Failed to save history:', error);
+      // 저장 실패 시 히스토리 초기화
+      setHistory([]);
+      localStorage.removeItem('imageGenerationHistory');
+    }
+  }, [history]);
 
   // 사이드바 표시 상태
   const [showSidebar, setShowSidebar] = useState(false);
@@ -1238,12 +1593,6 @@ const ImageGeneratepage = () => {
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
-
-  // 효과
-  useEffect(() => {
-    // 히스토리 변경 시 localStorage에 저장
-    localStorage.setItem('imageGenerationHistory', JSON.stringify(history));
-  }, [history]);
 
   // 커스텀 프리셋 상태 관리
   const [customPresets, setCustomPresets] = useState(() => {
@@ -1308,9 +1657,8 @@ const ImageGeneratepage = () => {
       ...prev,
       prompt: item.prompt,
       initialImage: item.initialImage,
-      finalImage: item.finalImage,
+      variationImages: item.variationImages,
       selectedInitialModel: item.model,
-      selectedFinalModel: item.model
     }));
 
     // Style GAN-ada 파라미터 복원
@@ -1364,7 +1712,7 @@ const ImageGeneratepage = () => {
   /**
    * 초기 이미지 생성 처리
    */
-  const handleInitialGeneration = useCallback(async () => {
+  const handleInitialGeneration = useCallback(async (seed) => {
     if (!state.prompt || !state.selectedInitialModel) return;
 
     setState(prev => ({ ...prev, loading: true, error: "" }));
@@ -1375,14 +1723,16 @@ const ImageGeneratepage = () => {
         setState(prev => ({
           ...prev,
           initialImage: DUMMY_IMAGES[state.selectedInitialModel].INITIAL,
-          finalImage: ""
+          variationImages: []
         }));
       } else {
-        const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel);
+        const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel, seed);
+        // base64 데이터를 data URL 형식으로 변환
+        const imageUrl = `data:image/png;base64,${imageData}`;
         setState(prev => ({
           ...prev,
-          initialImage: `data:image/png;base64,${imageData}`,
-          finalImage: ""
+          initialImage: imageUrl,
+          variationImages: []
         }));
       }
     } catch (err) {
@@ -1393,91 +1743,96 @@ const ImageGeneratepage = () => {
   }, [state.prompt, state.selectedInitialModel]);
 
   /**
-   * 최종 이미지 변환 처리
+   * 이미지 변환 처리
    */
-  const handleFinalGeneration = useCallback(async () => {
+  const handleGenerateVariations = useCallback(async () => {
     if (!state.initialImage) return;
 
     setState(prev => ({ ...prev, loading: true, error: "" }));
 
     try {
-      if (USE_DUMMY_DATA) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Style GAN-ada 모델일 경우 파라미터 값에 따라 다른 더미 이미지 생성
-        let finalImageData;
-        if (state.selectedFinalModel === "Style GAN-ada") {
-          // 파라미터 값에 따라 SVG 색상 조정
-          const hue = Math.floor(styleGanParams.truncation * 360);
-          const saturation = Math.floor(styleGanParams.noise * 100);
-          const lightness = Math.floor(styleGanParams.strength * 100);
+      // 1. 이미지 업로드
+      const uploadResult = await uploadImage(state.initialImage);
 
-          finalImageData = "data:image/svg+xml;base64," + btoa(`
-            <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-              <rect width="100%" height="100%" fill="hsl(${hue}, ${saturation}%, ${lightness}%)"/>
-              <text x="50%" y="30%" font-family="Arial" font-size="24" fill="white" text-anchor="middle" dy=".3em">Transformed by Style GAN-ada</text>
-              <text x="50%" y="50%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Truncation: ${styleGanParams.truncation.toFixed(2)}</text>
-              <text x="50%" y="60%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Noise: ${styleGanParams.noise.toFixed(2)}</text>
-              <text x="50%" y="70%" font-family="Arial" font-size="16" fill="white" text-anchor="middle" dy=".3em">Strength: ${styleGanParams.strength.toFixed(2)}</text>
-            </svg>
-          `);
-        } else {
-          finalImageData = DUMMY_IMAGES[state.selectedFinalModel].FINAL;
-        }
+      // 2. 랜덤 시드 기반 스타일 믹싱 시작
+      const response = await seedStyleMixing(uploadResult.image_id);
 
-        setState(prev => ({ ...prev, finalImage: finalImageData }));
+      // 3. 결과 다운로드
+      const images = await getSimplifiedResults(response.job_id);
 
-        const newHistoryItem = {
-          id: Date.now(),
-          prompt: state.prompt,
-          initialImage: state.initialImage,
-          finalImage: finalImageData,
-          model: state.selectedFinalModel,
-          timestamp: new Date().toLocaleString(),
-          ...(state.selectedFinalModel === "Style GAN-ada" && {
-            parameters: { ...styleGanParams }
-          })
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
-      } else {
-        // 실제 API 호출 시에도 Style GAN-ada 파라미터 전달
-        const imageData = await generateFinalImage(
-          state.initialImage,
-          state.selectedFinalModel,
-          state.selectedFinalModel === "Style GAN-ada" ? styleGanParams : undefined
-        );
-        const finalImageData = `data:image/png;base64,${imageData}`;
-        setState(prev => ({ ...prev, finalImage: finalImageData }));
-
-        const newHistoryItem = {
-          id: Date.now(),
-          prompt: state.prompt,
-          initialImage: state.initialImage,
-          finalImage: finalImageData,
-          model: state.selectedFinalModel,
-          timestamp: new Date().toLocaleString(),
-          ...(state.selectedFinalModel === "Style GAN-ada" && {
-            parameters: { ...styleGanParams }
-          })
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
+      if (!images || images.length === 0) {
+        throw new Error('Failed to generate variations');
       }
+
+      setState(prev => ({
+        ...prev,
+        variationImages: images,
+        currentFrame: 0,
+        isPlaying: false
+      }));
+
+      // 변형 이미지 생성 후 history에 저장
+      const newHistoryItem = {
+        id: Date.now(),
+        prompt: state.prompt,
+        initialImage: state.initialImage,
+        variationImages: images,
+        currentFrame: 0,
+        totalFrames: images.length,
+        timestamp: new Date().toISOString(),
+        model: state.selectedInitialModel
+      };
+
+      setHistory(prev => {
+        // 새로운 항목을 앞에 추가하고 최대 항목 수 유지
+        const newHistory = [newHistoryItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+        return newHistory;
+      });
     } catch (err) {
       setState(prev => ({ ...prev, error: err.message }));
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [state.initialImage, state.selectedFinalModel, state.prompt, styleGanParams]);
+  }, [state.initialImage, state.prompt, state.selectedInitialModel]);
+
+  // 프레임 재생 관련 효과
+  useEffect(() => {
+    let interval;
+    if (state.isPlaying) {
+      interval = setInterval(() => {
+        setState(prev => {
+          // 마지막 프레임에 도달하면 재생 중지
+          if (prev.currentFrame >= prev.totalFrames - 1) {
+            return {
+              ...prev,
+              currentFrame: prev.totalFrames - 1,
+              isPlaying: false
+            };
+          }
+          return {
+            ...prev,
+            currentFrame: prev.currentFrame + 1
+          };
+        });
+      }, 1000 / state.fps);
+    }
+    return () => clearInterval(interval);
+  }, [state.isPlaying, state.totalFrames, state.fps]);
 
   /**
    * 이미지 재생성 처리
    */
   const handleRegenerate = useCallback(() => {
-    if (state.finalImage) {
-      handleFinalGeneration();
+    if (state.variationImages.length > 0) {
+      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+      const seed = Math.floor(Math.random() * 1000000);
+      handleGenerateVariations(seed);
     } else {
-      handleInitialGeneration();
+      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+      const seed = Math.floor(Math.random() * 1000000);
+      handleInitialGeneration(seed);
     }
-  }, [state.finalImage, handleFinalGeneration, handleInitialGeneration]);
+  }, [state.variationImages, handleGenerateVariations, handleInitialGeneration]);
 
   /**
    * 모든 입력 초기화 처리
@@ -1487,7 +1842,7 @@ const ImageGeneratepage = () => {
       ...prev,
       prompt: "",
       initialImage: "",
-      finalImage: "",
+      variationImages: [],
       error: ""
     }));
     setStyleGanParams({
@@ -1504,8 +1859,40 @@ const ImageGeneratepage = () => {
     setState(prev => ({ ...prev, selectedInitialModel: model }));
   }, []);
 
-  const handleFinalModelChange = useCallback((model) => {
-    setState(prev => ({ ...prev, selectedFinalModel: model }));
+  /**
+   * 히스토리 항목 저장
+   */
+  const handleSaveToHistory = useCallback(() => {
+    if (!state.prompt || !state.initialImage) return;
+
+    const newHistoryItem = {
+      id: Date.now(),
+      prompt: state.prompt,
+      initialImage: state.initialImage,
+      variationImages: state.variationImages,
+      currentFrame: state.currentFrame,
+      totalFrames: state.totalFrames,
+      timestamp: new Date().toISOString(),
+      model: state.selectedInitialModel
+    };
+
+    setHistory(prev => {
+      // 새로운 항목을 앞에 추가하고 최대 항목 수 유지
+      const newHistory = [newHistoryItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+      return newHistory;
+    });
+  }, [state.prompt, state.initialImage, state.variationImages, state.currentFrame, state.totalFrames, state.selectedInitialModel]);
+
+  const handleLoadFromHistory = useCallback((item) => {
+    setState(prev => ({
+      ...prev,
+      prompt: item.prompt,
+      initialImage: item.initialImage,
+      variationImages: item.variationImages || [],
+      currentFrame: item.currentFrame || 0,
+      totalFrames: item.totalFrames || 721,
+      selectedInitialModel: item.model || "Stable Diffusion 1.5"
+    }));
   }, []);
 
   // 렌더링 메서드들
@@ -1552,7 +1939,7 @@ const ImageGeneratepage = () => {
           <ContentArea>
             <ImageControlArea>
               {/* Initial Model Selection and Prompt Input - Only visible when no images exist */}
-              {!state.initialImage && !state.finalImage && (
+              {!state.initialImage && !state.variationImages.length && (
                 <>
                   <ModelSelect>
                     <ModelOptions>
@@ -1570,10 +1957,7 @@ const ImageGeneratepage = () => {
                               onClick={() => handleInitialModelChange(option.id)}
                             >
                               <ModelHeader>
-                                <ModelIcon>
-                                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                                    option.id.includes("Disco") ? "💃" : "✨"}
-                                </ModelIcon>
+                                <ModelIcon option={option} />
                                 <ModelTitle>{option.label}</ModelTitle>
                               </ModelHeader>
                               <ModelDescription>
@@ -1599,7 +1983,9 @@ const ImageGeneratepage = () => {
                   <Form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      handleInitialGeneration();
+                      // 랜덤 시드 생성 (0-1000000 사이의 정수)
+                      const seed = Math.floor(Math.random() * 1000000);
+                      handleInitialGeneration(seed);
                     }}
                     aria-label="Image generation form"
                   >
@@ -1653,137 +2039,8 @@ const ImageGeneratepage = () => {
                 </>
               )}
 
-              {/* Final Model Selection - Visible after initial image generation */}
-              {state.initialImage && (
-                <>
-                  <ModelSelect>
-                    <ModelOptions>
-                      <ModelSection>
-                        <SectionTitle>Select Final Model</SectionTitle>
-                        <div style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                          gap: "16px"
-                        }}>
-                          {FINAL_MODEL_OPTIONS.map((option) => (
-                            <ModelCard
-                              key={option.id}
-                              isSelected={state.selectedFinalModel === option.id}
-                              onClick={() => handleFinalModelChange(option.id)}
-                            >
-                              <ModelHeader>
-                                <ModelIcon>
-                                  {option.id.includes("Stable Diffusion") ? "🎨" :
-                                    option.id.includes("Disco") ? "💃" : "✨"}
-                                </ModelIcon>
-                                <ModelTitle>{option.label}</ModelTitle>
-                              </ModelHeader>
-                              <ModelDescription>
-                                {MODEL_DESCRIPTIONS[option.id].description}
-                              </ModelDescription>
-                              <ModelFeatures>
-                                <FeatureItem isPro>
-                                  <FeatureIcon>✓</FeatureIcon>
-                                  {MODEL_DESCRIPTIONS[option.id].pros[0]}
-                                </FeatureItem>
-                                <FeatureItem isPro={false}>
-                                  <FeatureIcon>✗</FeatureIcon>
-                                  {MODEL_DESCRIPTIONS[option.id].cons[0]}
-                                </FeatureItem>
-                              </ModelFeatures>
-                            </ModelCard>
-                          ))}
-                        </div>
-                      </ModelSection>
-                    </ModelOptions>
-                  </ModelSelect>
-
-                  {/* Style GAN-ada Parameters */}
-                  <SliderPanel show={state.selectedFinalModel === "Style GAN-ada"}>
-                    {/* Presets */}
-                    <PresetContainer>
-                      {Object.entries(STYLE_GAN_PRESETS).map(([name, values]) => (
-                        <PresetButton
-                          key={name}
-                          active={activePreset === name}
-                          onClick={() => handlePresetClick(name, values)}
-                        >
-                          {name}
-                        </PresetButton>
-                      ))}
-                      {Object.entries(customPresets).map(([name, values]) => (
-                        <PresetButton
-                          key={name}
-                          active={activePreset === name}
-                          onClick={() => handlePresetClick(name, values)}
-                        >
-                          {name}
-                        </PresetButton>
-                      ))}
-                      <SavePresetButton onClick={handleSavePreset}>
-                        Save Current
-                      </SavePresetButton>
-                    </PresetContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Truncation (Style Variation)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.truncation} />
-                        </div>
-                        <SliderValue>{styleGanParams.truncation.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.1"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.truncation}
-                        onChange={(e) => handleStyleGanParamChange('truncation', parseFloat(e.target.value))}
-                        aria-label="Style variation control"
-                      />
-                    </SliderContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Noise (Detail Level)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.noise} />
-                        </div>
-                        <SliderValue>{styleGanParams.noise.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.0"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.noise}
-                        onChange={(e) => handleStyleGanParamChange('noise', parseFloat(e.target.value))}
-                        aria-label="Noise level control"
-                      />
-                    </SliderContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Strength (Transform Intensity)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.strength} />
-                        </div>
-                        <SliderValue>{styleGanParams.strength.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.1"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.strength}
-                        onChange={(e) => handleStyleGanParamChange('strength', parseFloat(e.target.value))}
-                        aria-label="Transform strength control"
-                      />
-                    </SliderContainer>
-                  </SliderPanel>
-                </>
-              )}
-
               {/* Image display logic */}
-              {state.initialImage && !state.finalImage && (
+              {state.initialImage && !state.variationImages.length && (
                 <ImageContainer>
                   {state.loading && (
                     <LoadingOverlay>
@@ -1802,34 +2059,77 @@ const ImageGeneratepage = () => {
                 </ImageContainer>
               )}
 
-              {state.loading && !state.initialImage && (
-                <ImageContainer>
-                  <SkeletonContainer>
-                    <SkeletonImage />
-                    <SkeletonText />
-                    <SkeletonText />
-                    <SkeletonButton />
-                  </SkeletonContainer>
-                </ImageContainer>
-              )}
-
-              {state.finalImage && (
-                <ImageContainer>
-                  {state.loading && (
-                    <LoadingOverlay>
-                      <SkeletonContainer>
-                        <SkeletonImage />
-                        <SkeletonText />
-                        <SkeletonText />
-                        <SkeletonButton />
-                      </SkeletonContainer>
-                    </LoadingOverlay>
-                  )}
-                  <MemoizedImageMagnifier
-                    imageUrl={state.finalImage}
-                    alt="Transformed"
-                  />
-                </ImageContainer>
+              {state.variationImages.length > 0 && (
+                <>
+                  <ImageContainer>
+                    {state.loading && (
+                      <LoadingOverlay>
+                        <SkeletonContainer>
+                          <SkeletonImage />
+                          <SkeletonText />
+                          <SkeletonText />
+                          <SkeletonButton />
+                        </SkeletonContainer>
+                      </LoadingOverlay>
+                    )}
+                    <MemoizedImageMagnifier
+                      imageUrl={state.variationImages[state.currentFrame]}
+                      alt={`Variation ${state.currentFrame + 1} of ${state.totalFrames}`}
+                    />
+                  </ImageContainer>
+                  <SliderContainer>
+                    <ThumbnailContainer>
+                      {state.variationImages.map((image, index) => (
+                        <Thumbnail
+                          key={index}
+                          src={image}
+                          alt={`Thumbnail ${index + 1}`}
+                          isActive={index === state.currentFrame}
+                          onClick={() => setState(prev => ({ ...prev, currentFrame: index, isPlaying: false }))}
+                        />
+                      ))}
+                    </ThumbnailContainer>
+                    <Slider
+                      type="range"
+                      min="0"
+                      max={state.totalFrames - 1}
+                      value={state.currentFrame}
+                      onChange={(e) => {
+                        const newFrame = parseInt(e.target.value);
+                        setState(prev => ({ ...prev, currentFrame: newFrame, isPlaying: false }));
+                      }}
+                    />
+                    <FrameInfo>
+                      프레임: {String(state.currentFrame + 1).padStart(3, '0')} / {String(state.totalFrames).padStart(3, '0')}
+                    </FrameInfo>
+                    <SliderControls>
+                      <PlaybackControls>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }))}
+                          aria-label={state.isPlaying ? "Pause" : "Play"}
+                        >
+                          {state.isPlaying ? '⏸️' : '▶️'}
+                        </PlaybackButton>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({ ...prev, currentFrame: 0, isPlaying: false }))}
+                          aria-label="Go to first frame"
+                        >
+                          ⏮️
+                        </PlaybackButton>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({
+                            ...prev,
+                            currentFrame: prev.totalFrames - 1,
+                            isPlaying: false
+                          }))}
+                          aria-label="Go to last frame"
+                        >
+                          ⏭️
+                        </PlaybackButton>
+                      </PlaybackControls>
+                    </SliderControls>
+                  </SliderContainer>
+                </>
               )}
 
               {/* Button controls */}
@@ -1849,35 +2149,47 @@ const ImageGeneratepage = () => {
                   >
                     reset
                   </Button>
-                  {!state.finalImage ? (
+                  {!state.variationImages.length ? (
                     <Button
-                      onClick={handleFinalGeneration}
-                      disabled={state.loading || !state.selectedFinalModel}
-                      aria-label="Transform image style"
+                      onClick={handleGenerateVariations}
+                      disabled={state.loading}
+                      aria-label="Generate variations"
                     >
-                      style transform
+                      Generate Variations
                     </Button>
                   ) : (
                     <Button
                       variant="success"
                       onClick={() => {
-                        const byteCharacters = atob(state.finalImage.split(',')[1]);
-                        const byteNumbers = new Array(byteCharacters.length);
-                        for (let i = 0; i < byteCharacters.length; i++) {
-                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        const imageUrl = state.variationImages[state.currentFrame];
+                        if (imageUrl.startsWith('data:')) {
+                          // base64 이미지 다운로드
+                          const byteCharacters = atob(imageUrl.split(',')[1]);
+                          const byteNumbers = new Array(byteCharacters.length);
+                          for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                          }
+                          const byteArray = new Uint8Array(byteNumbers);
+                          const blob = new Blob([byteArray], { type: 'image/png' });
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `variation_${state.currentFrame}.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        } else {
+                          // URL 이미지 다운로드
+                          const a = document.createElement('a');
+                          a.href = imageUrl;
+                          a.download = `variation_${state.currentFrame}.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
                         }
-                        const byteArray = new Uint8Array(byteNumbers);
-                        const blob = new Blob([byteArray], { type: 'image/png' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'transformed_image.png';
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        document.body.removeChild(a);
                       }}
-                      aria-label="Download transformed image"
+                      aria-label="Download current frame"
                     >
                       download
                     </Button>
@@ -1900,6 +2212,7 @@ const ImageGeneratepage = () => {
             aria-expanded={showSidebar}
             aria-controls="history-sidebar"
             aria-label={showSidebar ? "Hide history sidebar" : "Show history sidebar"}
+            isHistoryButton
           >
             {showSidebar ? "Hide History" : "Show History"}
           </Button>
@@ -1934,6 +2247,7 @@ const ImageGeneratepage = () => {
                     variant="success"
                     onClick={handleExportHistory}
                     aria-label="Export history"
+                    isHistoryButton
                   >
                     Export
                   </Button>
@@ -1941,6 +2255,7 @@ const ImageGeneratepage = () => {
                     variant="danger"
                     onClick={handleClearHistory}
                     aria-label="Clear all history"
+                    isHistoryButton
                   >
                     Clear All
                   </Button>
@@ -1957,6 +2272,7 @@ const ImageGeneratepage = () => {
               <Button
                 onClick={() => document.getElementById('history-import').click()}
                 aria-label="Import history"
+                isHistoryButton
               >
                 Import
               </Button>
@@ -1964,15 +2280,21 @@ const ImageGeneratepage = () => {
           </SidebarHeader>
 
           <HistoryList role="list" aria-label="History items">
-            {renderHistoryItems}
-            {history.length === 0 && (
-              <div style={{
-                textAlign: "center",
-                color: "#666",
-                padding: "20px"
-              }}>
-                No history yet
-              </div>
+            {history.length === 0 ? (
+              <HistoryEmptyState>
+                <HistoryEmptyIcon>📸</HistoryEmptyIcon>
+                <HistoryEmptyText>No history yet</HistoryEmptyText>
+                <HistoryEmptySubtext>Your generated images will appear here</HistoryEmptySubtext>
+              </HistoryEmptyState>
+            ) : (
+              history.map(item => (
+                <HistoryItemComponent
+                  key={item.id}
+                  item={item}
+                  onRestore={handleRestoreHistory}
+                  onDelete={handleDeleteHistory}
+                />
+              ))
             )}
           </HistoryList>
         </Sidebar>
