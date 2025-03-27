@@ -646,11 +646,16 @@ const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => (
     </HistoryItemHeader>
     <HistoryImages>
       <HistoryImage src={item.initialImage} alt="Initial" />
-      <HistoryImage src={item.finalImage} alt="Final" />
+      {item.variationImages && item.variationImages.length > 0 && (
+        <HistoryImage src={item.variationImages[0]} alt="First variation" />
+      )}
     </HistoryImages>
     <HistoryFooter>
       <span>{item.model}</span>
-      <span>{item.timestamp}</span>
+      <span>{new Date(item.timestamp).toLocaleString()}</span>
+      {item.variationImages && item.variationImages.length > 0 && (
+        <span>{item.variationImages.length} variations</span>
+      )}
     </HistoryFooter>
   </HistoryItem>
 ));
@@ -1393,12 +1398,27 @@ const ImageGeneratepage = () => {
         currentFrame: 0,
         isPlaying: false
       }));
+
+      // 변형 이미지 생성 후 history에 저장
+      const newHistoryItem = {
+        id: Date.now(),
+        prompt: state.prompt,
+        initialImage: state.initialImage,
+        variationImages: images,  // 모든 변형 이미지 저장
+        currentFrame: 0,
+        totalFrames: images.length,  // 실제 생성된 이미지 수로 설정
+        timestamp: new Date().toISOString(),
+        model: state.selectedInitialModel
+      };
+
+      setHistory(prev => [newHistoryItem, ...prev]);
+      localStorage.setItem('imageGenerationHistory', JSON.stringify([newHistoryItem, ...history]));
     } catch (err) {
       setState(prev => ({ ...prev, error: err.message }));
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [state.initialImage]);
+  }, [state.initialImage, state.prompt, state.selectedInitialModel, history]);
 
   // 프레임 재생 관련 효과
   useEffect(() => {
