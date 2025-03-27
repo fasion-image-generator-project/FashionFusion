@@ -357,7 +357,7 @@ const Button = styled.button.attrs(props => ({
   'aria-disabled': props.disabled,
   role: 'button',
 }))`
-  padding: 12px 24px;
+  padding: 8px 16px;
   background-color: ${props => {
     if (props.variant === 'success') return props.theme.success;
     if (props.variant === 'danger') return props.theme.danger;
@@ -368,8 +368,12 @@ const Button = styled.button.attrs(props => ({
   border-radius: 6px;
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   opacity: ${props => props.disabled ? 0.6 : 1};
-  font-size: 1rem;
+  font-size: 0.9rem;
+  width: 100px;
+  text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
@@ -558,6 +562,22 @@ const Sidebar = styled.div`
   padding: 20px;
   overflow-y: auto;
   color: ${props => props.theme.text};
+  scrollbar-width: thin;
+  scrollbar-color: ${props => props.theme.primary} ${props => props.theme.background};
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: ${props => props.theme.background};
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: ${props => props.theme.primary};
+    border-radius: 4px;
+  }
 `;
 
 const SidebarHeader = styled.div`
@@ -579,32 +599,205 @@ const HistoryItem = styled.div`
   border-radius: 8px;
   background-color: ${props => props.theme.surface};
   box-shadow: 0 1px 3px ${props => props.theme.shadow};
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background-color: ${props => props.theme.primary};
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
 `;
 
 const HistoryItemHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  gap: 12px;
+`;
+
+const HistoryItemTitle = styled.div`
+  font-weight: 600;
+  color: ${props => props.theme.text};
+  position: relative;
+  cursor: pointer;
+  padding: 8px;
+  background-color: ${props => props.theme.background};
+  border-radius: 6px;
+  border: 1px solid ${props => props.theme.border};
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: translateY(10px);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: ${props => props.theme.primary}10;
+    border-color: ${props => props.theme.primary};
+  }
+
+  &::before {
+    content: '💭';
+    font-size: 1.2rem;
+    opacity: 0.8;
+  }
+
+  ${HistoryItem}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const HistoryItemTooltip = styled.div`
+  visibility: hidden;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: ${props => props.theme.surface};
+  color: ${props => props.theme.text};
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  width: 80%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px ${props => props.theme.shadow};
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.2s ease;
+  border: 1px solid ${props => props.theme.border};
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: ${props => props.theme.surface} transparent transparent transparent;
+  }
+
+  &.show {
+    visibility: visible;
+    opacity: 1;
+  }
+`;
+
+const TooltipOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${props => props.theme.overlay};
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+
+  &.show {
+    opacity: 1;
+    visibility: visible;
+  }
+`;
+
+const HistoryItemActions = styled.div`
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+
+  ${HistoryItem}:hover & {
+    opacity: 1;
+    transform: translateY(0);
+  }
 `;
 
 const HistoryImages = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 `;
 
 const HistoryImage = styled.img`
-  width: 50%;
-  height: auto;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
   border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 `;
 
 const HistoryFooter = styled.div`
-  font-size: 0.9em;
-  color: ${props => props.theme.textSecondary};
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 0.9em;
+  color: ${props => props.theme.textSecondary};
+  padding-top: 8px;
+  border-top: 1px solid ${props => props.theme.border};
+`;
+
+const HistoryBadge = styled.span`
+  background-color: ${props => props.theme.primary}20;
+  color: ${props => props.theme.primary};
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+`;
+
+const HistoryEmptyState = styled.div`
+  text-align: center;
+  padding: 40px 20px;
+  color: ${props => props.theme.textSecondary};
+  background-color: ${props => props.theme.background};
+  border-radius: 8px;
+  margin: 20px 0;
+`;
+
+const HistoryEmptyIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+`;
+
+const HistoryEmptyText = styled.div`
+  font-size: 1.1em;
+  margin-bottom: 8px;
+`;
+
+const HistoryEmptySubtext = styled.div`
+  font-size: 0.9em;
+  color: ${props => props.theme.textSecondary};
 `;
 
 /**
@@ -618,47 +811,58 @@ const MemoizedLoadingSpinner = React.memo(LoadingSpinner);
  * 히스토리 아이템 컴포넌트
  * 개별 히스토리 항목을 표시하는 메모이제이션된 컴포넌트
  */
-const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => (
-  <HistoryItem
-    role="listitem"
-    aria-label={`History item: ${item.prompt}`}
-  >
-    <HistoryItemHeader>
-      <div style={{ fontWeight: "bold" }}>
+const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  return (
+    <HistoryItem
+      role="listitem"
+      aria-label={`History item: ${item.prompt}`}
+    >
+      <HistoryItemHeader>
+        <HistoryItemTitle onClick={() => setShowTooltip(true)} />
+        <HistoryItemActions>
+          <Button
+            variant="success"
+            onClick={() => onRestore(item)}
+            aria-label={`Restore generation: ${item.prompt}`}
+          >
+            restore
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => onDelete(item.id)}
+            aria-label={`Delete history item: ${item.prompt}`}
+          >
+            delete
+          </Button>
+        </HistoryItemActions>
+      </HistoryItemHeader>
+      <HistoryImages>
+        <HistoryImage src={item.initialImage} alt="Initial" />
+        {item.variationImages && item.variationImages.length > 0 && (
+          <HistoryImage src={item.variationImages[0]} alt="First variation" />
+        )}
+      </HistoryImages>
+      <HistoryFooter>
+        <span>{item.model}</span>
+        <span>{new Date(item.timestamp).toLocaleString()}</span>
+        {item.variationImages && item.variationImages.length > 0 && (
+          <HistoryBadge>
+            {item.variationImages.length} variations
+          </HistoryBadge>
+        )}
+      </HistoryFooter>
+      <TooltipOverlay
+        className={showTooltip ? 'show' : ''}
+        onClick={() => setShowTooltip(false)}
+      />
+      <HistoryItemTooltip className={showTooltip ? 'show' : ''}>
         {item.prompt}
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <Button
-          variant="success"
-          onClick={() => onRestore(item)}
-          aria-label={`Restore generation: ${item.prompt}`}
-        >
-          Restore
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => onDelete(item.id)}
-          aria-label={`Delete history item: ${item.prompt}`}
-        >
-          Delete
-        </Button>
-      </div>
-    </HistoryItemHeader>
-    <HistoryImages>
-      <HistoryImage src={item.initialImage} alt="Initial" />
-      {item.variationImages && item.variationImages.length > 0 && (
-        <HistoryImage src={item.variationImages[0]} alt="First variation" />
-      )}
-    </HistoryImages>
-    <HistoryFooter>
-      <span>{item.model}</span>
-      <span>{new Date(item.timestamp).toLocaleString()}</span>
-      {item.variationImages && item.variationImages.length > 0 && (
-        <span>{item.variationImages.length} variations</span>
-      )}
-    </HistoryFooter>
-  </HistoryItem>
-));
+      </HistoryItemTooltip>
+    </HistoryItem>
+  );
+});
 
 /**
  * 모델 선택 컴포넌트
@@ -1949,15 +2153,21 @@ const ImageGeneratepage = () => {
           </SidebarHeader>
 
           <HistoryList role="list" aria-label="History items">
-            {renderHistoryItems}
-            {history.length === 0 && (
-              <div style={{
-                textAlign: "center",
-                color: "#666",
-                padding: "20px"
-              }}>
-                No history yet
-              </div>
+            {history.length === 0 ? (
+              <HistoryEmptyState>
+                <HistoryEmptyIcon>📸</HistoryEmptyIcon>
+                <HistoryEmptyText>No history yet</HistoryEmptyText>
+                <HistoryEmptySubtext>Your generated images will appear here</HistoryEmptySubtext>
+              </HistoryEmptyState>
+            ) : (
+              history.map(item => (
+                <HistoryItemComponent
+                  key={item.id}
+                  item={item}
+                  onRestore={handleRestoreHistory}
+                  onDelete={handleDeleteHistory}
+                />
+              ))
             )}
           </HistoryList>
         </Sidebar>
