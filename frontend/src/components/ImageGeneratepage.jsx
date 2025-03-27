@@ -357,7 +357,7 @@ const Button = styled.button.attrs(props => ({
   'aria-disabled': props.disabled,
   role: 'button',
 }))`
-  padding: 8px 16px;
+  padding: 10px 20px;
   background-color: ${props => {
     if (props.variant === 'success') return props.theme.success;
     if (props.variant === 'danger') return props.theme.danger;
@@ -365,20 +365,55 @@ const Button = styled.button.attrs(props => ({
   }};
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   opacity: ${props => props.disabled ? 0.6 : 1};
-  font-size: 0.9rem;
-  width: 100px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.95rem;
+  font-weight: 500;
   transition: all 0.2s ease;
+  min-width: 120px;
+  text-align: center;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  position: relative;
+  overflow: hidden;
 
   &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
     filter: brightness(1.1);
   }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px ${props => props.theme.shadow};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  ${props => props.isHistoryButton && `
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    min-width: 100px;
+    width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: none;
+    transform: none;
+
+    &:hover:not(:disabled) {
+      transform: none;
+      box-shadow: none;
+    }
+
+    &:active:not(:disabled) {
+      transform: none;
+      box-shadow: none;
+    }
+  `}
 `;
 
 const ImageContainer = styled.div`
@@ -419,9 +454,11 @@ const LoadingOverlay = styled.div`
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  padding: 0 16px;
 `;
 
 const ModelCard = styled.div`
@@ -537,6 +574,13 @@ const HistoryButton = styled.div`
   top: 20px;
   z-index: 1000;
   transition: right 0.3s ease-in-out;
+
+  button {
+    width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
 const SidebarTrigger = styled.div`
@@ -826,6 +870,7 @@ const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => {
             variant="success"
             onClick={() => onRestore(item)}
             aria-label={`Restore generation: ${item.prompt}`}
+            isHistoryButton
           >
             restore
           </Button>
@@ -833,6 +878,7 @@ const HistoryItemComponent = React.memo(({ item, onRestore, onDelete }) => {
             variant="danger"
             onClick={() => onDelete(item.id)}
             aria-label={`Delete history item: ${item.prompt}`}
+            isHistoryButton
           >
             delete
           </Button>
@@ -1068,19 +1114,30 @@ const PlaybackControls = styled.div`
 `;
 
 const PlaybackButton = styled.button`
-  background: none;
-  border: none;
+  background: ${props => props.theme.surface};
+  border: 1px solid ${props => props.theme.border};
   cursor: pointer;
-  padding: 8px;
+  padding: 10px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   color: ${props => props.theme.text};
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 
   &:hover {
-    background-color: ${props => props.theme.background};
+    background-color: ${props => props.theme.primary};
+    color: white;
+    border-color: ${props => props.theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -1286,19 +1343,26 @@ const PromptExamples = styled.div`
 `;
 
 const ExampleButton = styled.button`
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: 8px 16px;
+  border-radius: 20px;
   border: 1px solid ${props => props.theme.border};
   background-color: ${props => props.theme.surface};
   color: ${props => props.theme.text};
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 
   &:hover {
     background-color: ${props => props.theme.primary};
     color: white;
     border-color: ${props => props.theme.primary};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px ${props => props.theme.shadow};
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -2089,6 +2153,7 @@ const ImageGeneratepage = () => {
             aria-expanded={showSidebar}
             aria-controls="history-sidebar"
             aria-label={showSidebar ? "Hide history sidebar" : "Show history sidebar"}
+            isHistoryButton
           >
             {showSidebar ? "Hide History" : "Show History"}
           </Button>
@@ -2123,6 +2188,7 @@ const ImageGeneratepage = () => {
                     variant="success"
                     onClick={handleExportHistory}
                     aria-label="Export history"
+                    isHistoryButton
                   >
                     Export
                   </Button>
@@ -2130,6 +2196,7 @@ const ImageGeneratepage = () => {
                     variant="danger"
                     onClick={handleClearHistory}
                     aria-label="Clear all history"
+                    isHistoryButton
                   >
                     Clear All
                   </Button>
@@ -2146,6 +2213,7 @@ const ImageGeneratepage = () => {
               <Button
                 onClick={() => document.getElementById('history-import').click()}
                 aria-label="Import history"
+                isHistoryButton
               >
                 Import
               </Button>
