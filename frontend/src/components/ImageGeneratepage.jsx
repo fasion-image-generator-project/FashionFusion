@@ -811,61 +811,82 @@ const SliderContainer = styled.div`
   box-shadow: 0 2px 4px ${props => props.theme.shadow};
 `;
 
-const Slider = styled.input.attrs({ type: 'range' })`
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: ${props => props.theme.border};
-  outline: none;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  -webkit-appearance: none;
-  margin: 10px 0;
+const ThumbnailContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 0;
+  margin-bottom: 15px;
+  scrollbar-width: thin;
+  scrollbar-color: ${props => props.theme.primary} ${props => props.theme.background};
 
-  &:hover {
-    opacity: 1;
+  &::-webkit-scrollbar {
+    height: 8px;
   }
 
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${props => props.theme.primary};
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      transform: scale(1.2);
-    }
+  &::-webkit-scrollbar-track {
+    background: ${props => props.theme.background};
+    border-radius: 4px;
   }
 
-  &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${props => props.theme.primary};
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      transform: scale(1.2);
-    }
+  &::-webkit-scrollbar-thumb {
+    background-color: ${props => props.theme.primary};
+    border-radius: 4px;
   }
 `;
 
-const Controls = styled.div`
+const Thumbnail = styled.img`
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid ${props => props.isActive ? props.theme.primary : 'transparent'};
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: ${props => props.theme.primary};
+  }
+`;
+
+const SliderControls = styled.div`
   display: flex;
-  gap: 10px;
-  justify-content: center;
+  align-items: center;
+  gap: 15px;
   margin-top: 15px;
 `;
 
+const PlaybackControls = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+const PlaybackButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: ${props => props.theme.text};
+
+  &:hover {
+    background-color: ${props => props.theme.background};
+  }
+`;
+
 const FrameInfo = styled.div`
-  text-align: center;
-  color: ${props => props.theme.textSecondary};
   font-size: 0.9rem;
+  color: ${props => props.theme.textSecondary};
   margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const PresetContainer = styled.div`
@@ -1166,6 +1187,49 @@ const SkeletonButton = styled.div`
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 20px;
+`;
+
+const Slider = styled.input.attrs({ type: 'range' })`
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: ${props => props.theme.border};
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  -webkit-appearance: none;
+  margin: 10px 0;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${props => props.theme.primary};
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: ${props => props.theme.primary};
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
 `;
 
 /**
@@ -1687,6 +1751,17 @@ const ImageGeneratepage = () => {
                     />
                   </ImageContainer>
                   <SliderContainer>
+                    <ThumbnailContainer>
+                      {state.variationImages.map((image, index) => (
+                        <Thumbnail
+                          key={index}
+                          src={image}
+                          alt={`Thumbnail ${index + 1}`}
+                          isActive={index === state.currentFrame}
+                          onClick={() => setState(prev => ({ ...prev, currentFrame: index, isPlaying: false }))}
+                        />
+                      ))}
+                    </ThumbnailContainer>
                     <Slider
                       type="range"
                       min="0"
@@ -1698,16 +1773,34 @@ const ImageGeneratepage = () => {
                       }}
                     />
                     <FrameInfo>
-                      프레임: {state.currentFrame} / {state.totalFrames - 1}
+                      프레임: {state.currentFrame + 1} / {state.totalFrames}
                     </FrameInfo>
-                    <Controls>
-                      <Button onClick={() => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }))}>
-                        {state.isPlaying ? '일시정지' : '재생'}
-                      </Button>
-                      <Button onClick={() => setState(prev => ({ ...prev, currentFrame: 0, isPlaying: false }))}>
-                        처음으로
-                      </Button>
-                    </Controls>
+                    <SliderControls>
+                      <PlaybackControls>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }))}
+                          aria-label={state.isPlaying ? "Pause" : "Play"}
+                        >
+                          {state.isPlaying ? '⏸️' : '▶️'}
+                        </PlaybackButton>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({ ...prev, currentFrame: 0, isPlaying: false }))}
+                          aria-label="Go to first frame"
+                        >
+                          ⏮️
+                        </PlaybackButton>
+                        <PlaybackButton
+                          onClick={() => setState(prev => ({
+                            ...prev,
+                            currentFrame: prev.totalFrames - 1,
+                            isPlaying: false
+                          }))}
+                          aria-label="Go to last frame"
+                        >
+                          ⏭️
+                        </PlaybackButton>
+                      </PlaybackControls>
+                    </SliderControls>
                   </SliderContainer>
                 </>
               )}
