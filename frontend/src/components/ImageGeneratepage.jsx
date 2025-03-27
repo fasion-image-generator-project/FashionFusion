@@ -12,7 +12,7 @@
 // src/components/ImageGeneratepage.jsx
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import styled, { createGlobalStyle, keyframes, ThemeProvider } from "styled-components";
-import { generateInitialImage, generateFinalImage } from "../api";
+import { generateInitialImage, generateVariations } from "../api";
 
 // 개발 및 테스트를 위한 상수 정의
 const USE_DUMMY_DATA = true; // true: 더미 데이터 사용, false: 실제 API 호출
@@ -798,42 +798,15 @@ const ThemeToggle = styled.button`
   }
 `;
 
-const SliderPanel = styled.div`
-  margin-top: 15px;
-  padding: 15px;
-  background-color: ${props => props.theme.surface};
-  border: 1px solid ${props => props.theme.border};
-  border-radius: 8px;
-  display: ${props => props.show ? 'block' : 'none'};
-`;
-
 const SliderContainer = styled.div`
-  margin-bottom: 15px;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
+  margin: 20px 0;
+  padding: 20px;
+  background-color: ${props => props.theme.surface};
+  border-radius: 12px;
+  box-shadow: 0 2px 4px ${props => props.theme.shadow};
 `;
 
-const SliderHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-`;
-
-const SliderLabel = styled.label`
-  font-size: 0.9rem;
-  color: ${props => props.theme.textSecondary};
-`;
-
-const SliderValue = styled.span`
-  font-size: 0.9rem;
-  color: ${props => props.theme.primary};
-  font-weight: bold;
-`;
-
-const StyledSlider = styled.input.attrs({ type: 'range' })`
+const Slider = styled.input.attrs({ type: 'range' })`
   width: 100%;
   height: 4px;
   border-radius: 2px;
@@ -842,6 +815,7 @@ const StyledSlider = styled.input.attrs({ type: 'range' })`
   opacity: 0.7;
   transition: opacity 0.2s;
   -webkit-appearance: none;
+  margin: 10px 0;
 
   &:hover {
     opacity: 1;
@@ -873,6 +847,20 @@ const StyledSlider = styled.input.attrs({ type: 'range' })`
       transform: scale(1.2);
     }
   }
+`;
+
+const Controls = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+`;
+
+const FrameInfo = styled.div`
+  text-align: center;
+  color: ${props => props.theme.textSecondary};
+  font-size: 0.9rem;
+  margin: 10px 0;
 `;
 
 const PresetContainer = styled.div`
@@ -1190,11 +1178,14 @@ const ImageGeneratepage = () => {
   const [state, setState] = useState({
     prompt: "",              // 텍스트 프롬프트
     initialImage: "",        // 초기 생성된 이미지
-    finalImage: "",          // 변환된 이미지
+    variationImages: [],     // 변환된 이미지들
     loading: false,          // 로딩 상태
     error: "",              // 에러 메시지
     selectedInitialModel: "Stable Diffusion 1.5",  // 초기 이미지 생성용 모델
-    selectedFinalModel: "Disco GAN"     // 최종 이미지 생성용 모델
+    currentFrame: 0,        // 현재 프레임
+    isPlaying: false,       // 재생 상태
+    totalFrames: 721,       // 총 프레임 수
+    fps: 30                 // FPS
   });
 
   // 히스토리 상태 - localStorage와 동기화
@@ -1301,9 +1292,8 @@ const ImageGeneratepage = () => {
       ...prev,
       prompt: item.prompt,
       initialImage: item.initialImage,
-      finalImage: item.finalImage,
+      variationImages: item.variationImages,
       selectedInitialModel: item.model,
-      selectedFinalModel: item.model
     }));
 
     // Style GAN-ada 파라미터 복원
@@ -1368,7 +1358,7 @@ const ImageGeneratepage = () => {
         setState(prev => ({
           ...prev,
           initialImage: DUMMY_IMAGES[state.selectedInitialModel].INITIAL,
-          finalImage: ""
+          variationImages: []
         }));
       } else {
         const imageData = await generateInitialImage(state.prompt, state.selectedInitialModel, seed);
@@ -1377,7 +1367,7 @@ const ImageGeneratepage = () => {
         setState(prev => ({
           ...prev,
           initialImage: imageUrl,
-          finalImage: ""
+          variationImages: []
         }));
       }
     } catch (err) {
@@ -1388,48 +1378,56 @@ const ImageGeneratepage = () => {
   }, [state.prompt, state.selectedInitialModel]);
 
   /**
-   * 최종 이미지 변환 처리
+   * 이미지 변환 처리
    */
-  const handleFinalGeneration = useCallback(async (seed) => {
+  const handleGenerateVariations = useCallback(async () => {
     if (!state.initialImage) return;
 
     setState(prev => ({ ...prev, loading: true, error: "" }));
 
     try {
-      if (USE_DUMMY_DATA) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setState(prev => ({
-          ...prev,
-          finalImage: DUMMY_IMAGES[state.selectedFinalModel].FINAL
-        }));
-      } else {
-        const imageData = await generateFinalImage(state.initialImage, state.selectedFinalModel, seed);
-        setState(prev => ({
-          ...prev,
-          finalImage: `data:image/png;base64,${imageData}`
-        }));
-      }
+      const images = await generateVariations(state.initialImage);
+      setState(prev => ({
+        ...prev,
+        variationImages: images,
+        currentFrame: 0,
+        isPlaying: false
+      }));
     } catch (err) {
       setState(prev => ({ ...prev, error: err.message }));
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [state.initialImage, state.selectedFinalModel]);
+  }, [state.initialImage]);
+
+  // 프레임 재생 관련 효과
+  useEffect(() => {
+    let interval;
+    if (state.isPlaying) {
+      interval = setInterval(() => {
+        setState(prev => ({
+          ...prev,
+          currentFrame: (prev.currentFrame + 1) % prev.totalFrames
+        }));
+      }, 1000 / state.fps);
+    }
+    return () => clearInterval(interval);
+  }, [state.isPlaying, state.totalFrames, state.fps]);
 
   /**
    * 이미지 재생성 처리
    */
   const handleRegenerate = useCallback(() => {
-    if (state.finalImage) {
+    if (state.variationImages.length > 0) {
       // 랜덤 시드 생성 (0-1000000 사이의 정수)
       const seed = Math.floor(Math.random() * 1000000);
-      handleFinalGeneration(seed);
+      handleGenerateVariations(seed);
     } else {
       // 랜덤 시드 생성 (0-1000000 사이의 정수)
       const seed = Math.floor(Math.random() * 1000000);
       handleInitialGeneration(seed);
     }
-  }, [state.finalImage, handleFinalGeneration, handleInitialGeneration]);
+  }, [state.variationImages, handleGenerateVariations, handleInitialGeneration]);
 
   /**
    * 모든 입력 초기화 처리
@@ -1439,7 +1437,7 @@ const ImageGeneratepage = () => {
       ...prev,
       prompt: "",
       initialImage: "",
-      finalImage: "",
+      variationImages: [],
       error: ""
     }));
     setStyleGanParams({
@@ -1456,8 +1454,34 @@ const ImageGeneratepage = () => {
     setState(prev => ({ ...prev, selectedInitialModel: model }));
   }, []);
 
-  const handleFinalModelChange = useCallback((model) => {
-    setState(prev => ({ ...prev, selectedFinalModel: model }));
+  const handleSaveToHistory = useCallback(() => {
+    if (!state.prompt || !state.initialImage) return;
+
+    const newHistoryItem = {
+      id: Date.now(),
+      prompt: state.prompt,
+      initialImage: state.initialImage,
+      variationImages: state.variationImages,
+      currentFrame: state.currentFrame,
+      totalFrames: state.totalFrames,
+      timestamp: new Date().toISOString(),
+      model: state.selectedInitialModel
+    };
+
+    setHistory(prev => [newHistoryItem, ...prev]);
+    localStorage.setItem('imageGenerationHistory', JSON.stringify([newHistoryItem, ...history]));
+  }, [state.prompt, state.initialImage, state.variationImages, state.currentFrame, state.totalFrames, state.selectedInitialModel, history]);
+
+  const handleLoadFromHistory = useCallback((item) => {
+    setState(prev => ({
+      ...prev,
+      prompt: item.prompt,
+      initialImage: item.initialImage,
+      variationImages: item.variationImages || [],
+      currentFrame: item.currentFrame || 0,
+      totalFrames: item.totalFrames || 721,
+      selectedInitialModel: item.model || "Stable Diffusion 1.5"
+    }));
   }, []);
 
   // 렌더링 메서드들
@@ -1504,7 +1528,7 @@ const ImageGeneratepage = () => {
           <ContentArea>
             <ImageControlArea>
               {/* Initial Model Selection and Prompt Input - Only visible when no images exist */}
-              {!state.initialImage && !state.finalImage && (
+              {!state.initialImage && !state.variationImages.length && (
                 <>
                   <ModelSelect>
                     <ModelOptions>
@@ -1604,134 +1628,8 @@ const ImageGeneratepage = () => {
                 </>
               )}
 
-              {/* Final Model Selection - Visible after initial image generation */}
-              {state.initialImage && (
-                <>
-                  <ModelSelect>
-                    <ModelOptions>
-                      <ModelSection>
-                        <SectionTitle>Select Final Model</SectionTitle>
-                        <div style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                          gap: "16px"
-                        }}>
-                          {FINAL_MODEL_OPTIONS.map((option) => (
-                            <ModelCard
-                              key={option.id}
-                              isSelected={state.selectedFinalModel === option.id}
-                              onClick={() => handleFinalModelChange(option.id)}
-                            >
-                              <ModelHeader>
-                                <ModelIcon option={option} />
-                                <ModelTitle>{option.label}</ModelTitle>
-                              </ModelHeader>
-                              <ModelDescription>
-                                {MODEL_DESCRIPTIONS[option.id].description}
-                              </ModelDescription>
-                              <ModelFeatures>
-                                <FeatureItem isPro>
-                                  <FeatureIcon>✓</FeatureIcon>
-                                  {MODEL_DESCRIPTIONS[option.id].pros[0]}
-                                </FeatureItem>
-                                <FeatureItem isPro={false}>
-                                  <FeatureIcon>✗</FeatureIcon>
-                                  {MODEL_DESCRIPTIONS[option.id].cons[0]}
-                                </FeatureItem>
-                              </ModelFeatures>
-                            </ModelCard>
-                          ))}
-                        </div>
-                      </ModelSection>
-                    </ModelOptions>
-                  </ModelSelect>
-
-                  {/* Style GAN-ada Parameters */}
-                  <SliderPanel show={state.selectedFinalModel === "Style GAN-ada"}>
-                    {/* Presets */}
-                    <PresetContainer>
-                      {Object.entries(STYLE_GAN_PRESETS).map(([name, values]) => (
-                        <PresetButton
-                          key={name}
-                          active={activePreset === name}
-                          onClick={() => handlePresetClick(name, values)}
-                        >
-                          {name}
-                        </PresetButton>
-                      ))}
-                      {Object.entries(customPresets).map(([name, values]) => (
-                        <PresetButton
-                          key={name}
-                          active={activePreset === name}
-                          onClick={() => handlePresetClick(name, values)}
-                        >
-                          {name}
-                        </PresetButton>
-                      ))}
-                      <SavePresetButton onClick={handleSavePreset}>
-                        Save Current
-                      </SavePresetButton>
-                    </PresetContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Truncation (Style Variation)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.truncation} />
-                        </div>
-                        <SliderValue>{styleGanParams.truncation.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.1"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.truncation}
-                        onChange={(e) => handleStyleGanParamChange('truncation', parseFloat(e.target.value))}
-                        aria-label="Style variation control"
-                      />
-                    </SliderContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Noise (Detail Level)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.noise} />
-                        </div>
-                        <SliderValue>{styleGanParams.noise.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.0"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.noise}
-                        onChange={(e) => handleStyleGanParamChange('noise', parseFloat(e.target.value))}
-                        aria-label="Noise level control"
-                      />
-                    </SliderContainer>
-
-                    <SliderContainer>
-                      <SliderHeader>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <SliderLabel>Strength (Transform Intensity)</SliderLabel>
-                          <Tooltip text={PARAMETER_DESCRIPTIONS.strength} />
-                        </div>
-                        <SliderValue>{styleGanParams.strength.toFixed(2)}</SliderValue>
-                      </SliderHeader>
-                      <StyledSlider
-                        min="0.1"
-                        max="1.0"
-                        step="0.01"
-                        value={styleGanParams.strength}
-                        onChange={(e) => handleStyleGanParamChange('strength', parseFloat(e.target.value))}
-                        aria-label="Transform strength control"
-                      />
-                    </SliderContainer>
-                  </SliderPanel>
-                </>
-              )}
-
               {/* Image display logic */}
-              {state.initialImage && !state.finalImage && (
+              {state.initialImage && !state.variationImages.length && (
                 <ImageContainer>
                   {state.loading && (
                     <LoadingOverlay>
@@ -1750,34 +1648,48 @@ const ImageGeneratepage = () => {
                 </ImageContainer>
               )}
 
-              {state.loading && !state.initialImage && (
-                <ImageContainer>
-                  <SkeletonContainer>
-                    <SkeletonImage />
-                    <SkeletonText />
-                    <SkeletonText />
-                    <SkeletonButton />
-                  </SkeletonContainer>
-                </ImageContainer>
-              )}
-
-              {state.finalImage && (
-                <ImageContainer>
-                  {state.loading && (
-                    <LoadingOverlay>
-                      <SkeletonContainer>
-                        <SkeletonImage />
-                        <SkeletonText />
-                        <SkeletonText />
-                        <SkeletonButton />
-                      </SkeletonContainer>
-                    </LoadingOverlay>
-                  )}
-                  <MemoizedImageMagnifier
-                    imageUrl={state.finalImage}
-                    alt="Transformed"
-                  />
-                </ImageContainer>
+              {state.variationImages.length > 0 && (
+                <>
+                  <ImageContainer>
+                    {state.loading && (
+                      <LoadingOverlay>
+                        <SkeletonContainer>
+                          <SkeletonImage />
+                          <SkeletonText />
+                          <SkeletonText />
+                          <SkeletonButton />
+                        </SkeletonContainer>
+                      </LoadingOverlay>
+                    )}
+                    <MemoizedImageMagnifier
+                      imageUrl={state.variationImages[state.currentFrame]}
+                      alt={`Variation ${state.currentFrame + 1} of ${state.totalFrames}`}
+                    />
+                  </ImageContainer>
+                  <SliderContainer>
+                    <Slider
+                      type="range"
+                      min="0"
+                      max={state.totalFrames - 1}
+                      value={state.currentFrame}
+                      onChange={(e) => {
+                        const newFrame = parseInt(e.target.value);
+                        setState(prev => ({ ...prev, currentFrame: newFrame, isPlaying: false }));
+                      }}
+                    />
+                    <FrameInfo>
+                      프레임: {state.currentFrame} / {state.totalFrames - 1}
+                    </FrameInfo>
+                    <Controls>
+                      <Button onClick={() => setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }))}>
+                        {state.isPlaying ? '일시정지' : '재생'}
+                      </Button>
+                      <Button onClick={() => setState(prev => ({ ...prev, currentFrame: 0, isPlaying: false }))}>
+                        처음으로
+                      </Button>
+                    </Controls>
+                  </SliderContainer>
+                </>
               )}
 
               {/* Button controls */}
@@ -1797,39 +1709,47 @@ const ImageGeneratepage = () => {
                   >
                     reset
                   </Button>
-                  {!state.finalImage ? (
+                  {!state.variationImages.length ? (
                     <Button
-                      onClick={() => {
-                        // 랜덤 시드 생성 (0-1000000 사이의 정수)
-                        const seed = Math.floor(Math.random() * 1000000);
-                        handleFinalGeneration(seed);
-                      }}
-                      disabled={state.loading || !state.selectedFinalModel}
-                      aria-label="Transform image style"
+                      onClick={handleGenerateVariations}
+                      disabled={state.loading}
+                      aria-label="Generate variations"
                     >
-                      style transform
+                      Generate Variations
                     </Button>
                   ) : (
                     <Button
                       variant="success"
                       onClick={() => {
-                        const byteCharacters = atob(state.finalImage.split(',')[1]);
-                        const byteNumbers = new Array(byteCharacters.length);
-                        for (let i = 0; i < byteCharacters.length; i++) {
-                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        const imageUrl = state.variationImages[state.currentFrame];
+                        if (imageUrl.startsWith('data:')) {
+                          // base64 이미지 다운로드
+                          const byteCharacters = atob(imageUrl.split(',')[1]);
+                          const byteNumbers = new Array(byteCharacters.length);
+                          for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                          }
+                          const byteArray = new Uint8Array(byteNumbers);
+                          const blob = new Blob([byteArray], { type: 'image/png' });
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `variation_${state.currentFrame}.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        } else {
+                          // URL 이미지 다운로드
+                          const a = document.createElement('a');
+                          a.href = imageUrl;
+                          a.download = `variation_${state.currentFrame}.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
                         }
-                        const byteArray = new Uint8Array(byteNumbers);
-                        const blob = new Blob([byteArray], { type: 'image/png' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'transformed_image.png';
-                        document.body.appendChild(a);
-                        a.click();
-                        window.URL.revokeObjectURL(url);
-                        document.body.removeChild(a);
                       }}
-                      aria-label="Download transformed image"
+                      aria-label="Download current frame"
                     >
                       download
                     </Button>

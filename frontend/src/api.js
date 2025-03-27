@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const API_BASE_URL = 'http://localhost:8000';  // 또는 실제 백엔드 URL
+const USE_DUMMY_DATA = true;  // true: 더미 데이터 사용, false: 실제 API 호출
 
 // Stable Diffusion 모델별 엔드포인트 매핑
 const STABLE_DIFFUSION_ENDPOINTS = {
@@ -53,16 +54,22 @@ export const generateInitialImage = async (prompt, model, seed) => {
     }
 };
 
-export const generateFinalImage = async (initialImage, selectedModel, seed) => {
+export const generateVariations = async (initialImage) => {
     try {
-        const response = await API.post("/predict/final", {
-            image: initialImage,
-            model: selectedModel,
-            seed: seed
-        });
-        // base64 이미지 데이터를 data URL로 변환
-        return `data:image/jpeg;base64,${response.data.imageUrl}`;
+        if (USE_DUMMY_DATA) {
+            // 더미 데이터 사용 시 721개의 프레임 이미지 URL 생성
+            return Array.from({ length: 721 }, (_, i) => 
+                `/frames/frame${(i + 1).toString().padStart(4, '0')}.png`
+            );
+        } else {
+            // 실제 API 호출
+            const response = await API.post("/predict/variations", {
+                image: initialImage
+            });
+            return response.data.images;
+        }
     } catch (error) {
-        throw new Error(error.response?.data?.detail || error.message);
+        console.error('Error generating variations:', error);
+        throw error;
     }
 };
